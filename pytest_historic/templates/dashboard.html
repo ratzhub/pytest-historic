@@ -332,7 +332,7 @@
             var status = [];
             status.push(['Execution ID', 'Pass', 'Fail', 'xPass', 'xFail']);
             {% for item in last_ten_data %}
-                status.push(['EID: '.concat({{item[0]}}), {{item[1]}}, {{item[2]}}, {{item[3]}}, {{item[4]}}]);
+                status.push(["{{item[0]}}", {{item[1]}}, {{item[2]}}, {{item[3]}}, {{item[4]}}]);
             {% endfor %}
 
             var data = google.visualization.arrayToDataTable(status);
@@ -364,7 +364,7 @@
                 var status = [];
                 status.push(['Execution ID', 'Time (s)']);
                 {% for item in last_ten_data %}
-                    status.push(['EID: '.concat({{item[0]}}), {{item[5]}}]);
+                    status.push(["{{item[0]}}", {{item[5]}}]);
                 {% endfor %}
 
                 var options = {

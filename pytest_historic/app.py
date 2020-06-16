@@ -86,7 +86,7 @@ def dashboard(db):
         cursor.execute("SELECT SUM(Execution_Pass), SUM(Execution_Fail), SUM(Execution_XPass), SUM(Execution_XFail), SUM(Execution_Executed), COUNT(Execution_Id) from TB_EXECUTION order by Execution_Id desc;")
         over_all_exe_pie_data = cursor.fetchall()
 
-        cursor.execute("SELECT Execution_Id, Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Time from TB_EXECUTION order by Execution_Id desc LIMIT 10;")
+        cursor.execute("SELECT Execution_Desc, Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Time from TB_EXECUTION order by Execution_Id desc LIMIT 10;")
         last_ten_data = cursor.fetchall()
 
         cursor.execute("select 'DUMMY', ROUND(MIN(execution_pass),2), ROUND(AVG(execution_pass),2), ROUND(MAX(execution_pass),2) from TB_EXECUTION order by execution_id desc;")
