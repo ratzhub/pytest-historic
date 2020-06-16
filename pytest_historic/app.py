@@ -51,7 +51,7 @@ def add_db():
             cursor.execute("INSERT INTO pytesthistoric.TB_PROJECT ( Project_Id, Project_Name, Project_Desc, Project_Image, Created_Date, Last_Updated, Total_Executions, Recent_Pass_Perc, Overall_Pass_Perc) VALUES (0, '%s', '%s', '%s', NOW(), NOW(), 0, 0, 0);" % (db_name, db_desc, db_image))
             # create tables in created database
             use_db(cursor, db_name)
-            cursor.execute("Create table TB_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Execution_Desc TEXT, Execution_Executed INT, Execution_Pass INT, Execution_Fail INT, Execution_Skip INT, Execution_XPass INT, Execution_XFail INT, Execution_Error INT, Execution_Time FLOAT);")
+            cursor.execute("Create table TB_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Execution_Desc TEXT, Execution_Executed INT, Execution_Pass INT, Execution_Fail INT, Execution_Skip INT, Execution_XPass INT, Execution_XFail INT, Execution_Error INT, Execution_Time FLOAT, Execution_Version TEXT);")
             cursor.execute("Create table TB_SUITE ( Suite_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Suite_Name TEXT, Suite_Executed INT, Suite_Pass INT, Suite_Fail INT, Suite_Skip INT, Suite_XPass INT, Suite_XFail INT, Suite_Error INT);")
             cursor.execute("Create table TB_TEST ( Test_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Test_Name TEXT, Test_Status CHAR(5), Test_Time FLOAT, Test_Error TEXT, Test_Comment TEXT);")
             mysql.connection.commit()
