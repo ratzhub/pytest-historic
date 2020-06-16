@@ -77,7 +77,7 @@ def dashboard(db):
 
     if results_data[0][0] > 0 and suite_results_data[0][0] > 0 and test_results_data[0][0] > 0:
 
-        cursor.execute("SELECT Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Executed, Execution_Time from TB_EXECUTION order by Execution_Id desc LIMIT 1;")
+        cursor.execute("SELECT Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Executed, Round(Execution_Time/60,2) from TB_EXECUTION order by Execution_Id desc LIMIT 1;")
         last_exe_pie_data = cursor.fetchall()
 
         cursor.execute("SELECT SUM(Execution_Pass), SUM(Execution_Fail), SUM(Execution_XPass), SUM(Execution_XFail), SUM(Execution_Executed), COUNT(Execution_Id) from (SELECT Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Executed, Execution_Id from TB_EXECUTION order by Execution_Id desc LIMIT 10) AS T;")
@@ -89,15 +89,15 @@ def dashboard(db):
         cursor.execute("SELECT Execution_Id, Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Time from TB_EXECUTION order by Execution_Id desc LIMIT 10;")
         last_ten_data = cursor.fetchall()
 
-        cursor.execute("select ROUND(MIN(execution_pass),2), ROUND(AVG(execution_pass),2), ROUND(MAX(execution_pass),2) from TB_EXECUTION order by execution_id desc;")
+        cursor.execute("select 'DUMMY', ROUND(MIN(execution_pass),2), ROUND(AVG(execution_pass),2), ROUND(MAX(execution_pass),2) from TB_EXECUTION order by execution_id desc;")
         execution_pass_data = cursor.fetchall()
 
-        cursor.execute("select ROUND(MIN(execution_fail),2), ROUND(AVG(execution_fail),2), ROUND(MAX(execution_fail),2) from TB_EXECUTION order by execution_id desc;")
+        cursor.execute("select 'DUMMY', ROUND(MIN(execution_fail),2), ROUND(AVG(execution_fail),2), ROUND(MAX(execution_fail),2) from TB_EXECUTION order by execution_id desc;")
         execution_fail_data = cursor.fetchall()
 
-        cursor.execute("select ROUND(MIN(execution_time),2), ROUND(AVG(execution_time),2), ROUND(MAX(execution_time),2) from TB_EXECUTION order by execution_id desc;")
+        cursor.execute("select 'DUMMY', ROUND(MIN(execution_time)/60,2), ROUND(AVG(execution_time)/60,2), ROUND(MAX(execution_time)/60,2) from TB_EXECUTION order by execution_id desc;")
         execution_time_data = cursor.fetchall()
-
+        
         return render_template('dashboard.html', last_ten_data=last_ten_data,
         last_exe_pie_data=last_exe_pie_data,
         last_ten_exe_pie_data=last_ten_exe_pie_data,
