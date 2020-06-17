@@ -7,13 +7,16 @@ app = Flask(__name__, template_folder='templates')
 
 mysql = MySQL(app)
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
+
 @app.route('/redirect')
 def redirect_url():
     return render_template('redirect.html')
+
 
 @app.route('/home', methods=['GET'])
 def home():
@@ -23,9 +26,11 @@ def home():
     data = cursor.fetchall()
     return render_template('home.html', data=data)
 
+
 @app.route('/<db>/deldbconf', methods=['GET'])
 def delete_db_conf(db):
-    return render_template('deldbconf.html', db_name = db)
+    return render_template('deldbconf.html', db_name=db)
+
 
 @app.route('/<db>/delete', methods=['GET'])
 def delete_db(db):
@@ -36,24 +41,31 @@ def delete_db(db):
     mysql.connection.commit()
     return redirect(url_for('home'))
 
+
 @app.route('/newdb', methods=['GET', 'POST'])
 def add_db():
     if request.method == "POST":
         db_name = request.form['dbname']
         db_desc = request.form['dbdesc']
         db_image = request.form['dbimage']
+        db_webhook = request.form['dbwebhook']
         cursor = mysql.connection.cursor()
 
         try:
             # create new database for project
             cursor.execute("Create DATABASE %s;" % db_name)
             # update created database info in pytesthistoric.TB_PROJECT table
-            cursor.execute("INSERT INTO pytesthistoric.TB_PROJECT ( Project_Id, Project_Name, Project_Desc, Project_Image, Created_Date, Last_Updated, Total_Executions, Recent_Pass_Perc, Overall_Pass_Perc) VALUES (0, '%s', '%s', '%s', NOW(), NOW(), 0, 0, 0);" % (db_name, db_desc, db_image))
+            cursor.execute(
+                "INSERT INTO pytesthistoric.TB_PROJECT ( Project_Id, Project_Name, Project_Desc, Project_Image, Created_Date, Last_Updated, Total_Executions, Recent_Pass_Perc, Overall_Pass_Perc, Project_Webhook) VALUES (0, '%s', '%s', '%s', NOW(), NOW(), 0, 0, 0, '%s');" % (
+                db_name, db_desc, db_image, db_webhook))
             # create tables in created database
             use_db(cursor, db_name)
-            cursor.execute("Create table TB_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Execution_Desc TEXT, Execution_Executed INT, Execution_Pass INT, Execution_Fail INT, Execution_Skip INT, Execution_XPass INT, Execution_XFail INT, Execution_Error INT, Execution_Time FLOAT, Execution_Version TEXT);")
-            cursor.execute("Create table TB_SUITE ( Suite_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Suite_Name TEXT, Suite_Executed INT, Suite_Pass INT, Suite_Fail INT, Suite_Skip INT, Suite_XPass INT, Suite_XFail INT, Suite_Error INT);")
-            cursor.execute("Create table TB_TEST ( Test_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Test_Name TEXT, Test_Status CHAR(5), Test_Time FLOAT, Test_Error TEXT, Test_Comment TEXT);")
+            cursor.execute(
+                "Create table TB_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Execution_Desc TEXT, Execution_Executed INT, Execution_Pass INT, Execution_Fail INT, Execution_Skip INT, Execution_XPass INT, Execution_XFail INT, Execution_Error INT, Execution_Time FLOAT, Execution_Version TEXT);")
+            cursor.execute(
+                "Create table TB_SUITE ( Suite_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Suite_Name TEXT, Suite_Executed INT, Suite_Pass INT, Suite_Fail INT, Suite_Skip INT, Suite_XPass INT, Suite_XFail INT, Suite_Error INT);")
+            cursor.execute(
+                "Create table TB_TEST ( Test_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Test_Name TEXT, Test_Status CHAR(5), Test_Time FLOAT, Test_Error TEXT, Test_Comment TEXT);")
             mysql.connection.commit()
         except Exception as e:
             print(str(e))
@@ -62,6 +74,39 @@ def add_db():
             return redirect(url_for('home'))
     else:
         return render_template('newdb.html')
+
+
+@app.route('/<db_name>/editdb', methods=['GET', 'POST'])
+def edit_db(db_name):
+    if request.method == "POST":
+        db_desc = request.form['dbdesc']
+        db_image = request.form['dbimage']
+        db_webhook = request.form['dbwebhook']
+        cursor = mysql.connection.cursor()
+
+        try:
+            # update created database info in pytesthistoric.TB_PROJECT table
+            if db_desc:
+                cursor.execute(
+                    "UPDATE pytesthistoric.TB_PROJECT SET Project_Desc = '%s' WHERE Project_Name = '%s';" % (
+                        db_desc, db_name))
+            if db_image:
+                cursor.execute(
+                    "UPDATE pytesthistoric.TB_PROJECT SET Project_Image ='%s' WHERE Project_Name = '%s';" % (
+                        db_image, db_name))
+            if db_webhook:
+                cursor.execute(
+                    "UPDATE pytesthistoric.TB_PROJECT SET Project_Webhook='%s' WHERE Project_Name = '%s';" % (
+                        db_webhook, db_name))
+            mysql.connection.commit()
+        except Exception as e:
+            print(str(e))
+
+        finally:
+            return redirect(url_for('home'))
+    else:
+        return render_template('editdb.html', db_name=db_name)
+
 
 @app.route('/<db>/dashboard', methods=['GET'])
 def dashboard(db):
@@ -77,37 +122,45 @@ def dashboard(db):
 
     if results_data[0][0] > 0 and suite_results_data[0][0] > 0 and test_results_data[0][0] > 0:
 
-        cursor.execute("SELECT Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Executed, Round(Execution_Time/60,2) from TB_EXECUTION order by Execution_Id desc LIMIT 1;")
+        cursor.execute(
+            "SELECT Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Executed, Round(Execution_Time/60,2) from TB_EXECUTION order by Execution_Id desc LIMIT 1;")
         last_exe_pie_data = cursor.fetchall()
 
-        cursor.execute("SELECT SUM(Execution_Pass), SUM(Execution_Fail), SUM(Execution_XPass), SUM(Execution_XFail), SUM(Execution_Executed), COUNT(Execution_Id) from (SELECT Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Executed, Execution_Id from TB_EXECUTION order by Execution_Id desc LIMIT 10) AS T;")
+        cursor.execute(
+            "SELECT SUM(Execution_Pass), SUM(Execution_Fail), SUM(Execution_XPass), SUM(Execution_XFail), SUM(Execution_Executed), COUNT(Execution_Id) from (SELECT Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Executed, Execution_Id from TB_EXECUTION order by Execution_Id desc LIMIT 10) AS T;")
         last_ten_exe_pie_data = cursor.fetchall()
 
-        cursor.execute("SELECT SUM(Execution_Pass), SUM(Execution_Fail), SUM(Execution_XPass), SUM(Execution_XFail), SUM(Execution_Executed), COUNT(Execution_Id) from TB_EXECUTION order by Execution_Id desc;")
+        cursor.execute(
+            "SELECT SUM(Execution_Pass), SUM(Execution_Fail), SUM(Execution_XPass), SUM(Execution_XFail), SUM(Execution_Executed), COUNT(Execution_Id) from TB_EXECUTION order by Execution_Id desc;")
         over_all_exe_pie_data = cursor.fetchall()
 
-        cursor.execute("SELECT Execution_Desc, Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Time from TB_EXECUTION order by Execution_Id desc LIMIT 10;")
+        cursor.execute(
+            "SELECT Execution_Desc, Execution_Pass, Execution_Fail, Execution_XPass, Execution_XFail, Execution_Time from TB_EXECUTION order by Execution_Id desc LIMIT 10;")
         last_ten_data = cursor.fetchall()
 
-        cursor.execute("select 'DUMMY', ROUND(MIN(execution_pass),2), ROUND(AVG(execution_pass),2), ROUND(MAX(execution_pass),2) from TB_EXECUTION order by execution_id desc;")
+        cursor.execute(
+            "select 'DUMMY', ROUND(MIN(execution_pass),2), ROUND(AVG(execution_pass),2), ROUND(MAX(execution_pass),2) from TB_EXECUTION order by execution_id desc;")
         execution_pass_data = cursor.fetchall()
 
-        cursor.execute("select 'DUMMY', ROUND(MIN(execution_fail),2), ROUND(AVG(execution_fail),2), ROUND(MAX(execution_fail),2) from TB_EXECUTION order by execution_id desc;")
+        cursor.execute(
+            "select 'DUMMY', ROUND(MIN(execution_fail),2), ROUND(AVG(execution_fail),2), ROUND(MAX(execution_fail),2) from TB_EXECUTION order by execution_id desc;")
         execution_fail_data = cursor.fetchall()
 
-        cursor.execute("select 'DUMMY', ROUND(MIN(execution_time)/60,2), ROUND(AVG(execution_time)/60,2), ROUND(MAX(execution_time)/60,2) from TB_EXECUTION order by execution_id desc;")
+        cursor.execute(
+            "select 'DUMMY', ROUND(MIN(execution_time)/60,2), ROUND(AVG(execution_time)/60,2), ROUND(MAX(execution_time)/60,2) from TB_EXECUTION order by execution_id desc;")
         execution_time_data = cursor.fetchall()
-        
+
         return render_template('dashboard.html', last_ten_data=last_ten_data,
-        last_exe_pie_data=last_exe_pie_data,
-        last_ten_exe_pie_data=last_ten_exe_pie_data,
-        over_all_exe_pie_data=over_all_exe_pie_data,
-        execution_pass_data=execution_pass_data,
-        execution_fail_data=execution_fail_data,
-        execution_time_data=execution_time_data,db_name=db)
+                               last_exe_pie_data=last_exe_pie_data,
+                               last_ten_exe_pie_data=last_ten_exe_pie_data,
+                               over_all_exe_pie_data=over_all_exe_pie_data,
+                               execution_pass_data=execution_pass_data,
+                               execution_fail_data=execution_fail_data,
+                               execution_time_data=execution_time_data, db_name=db)
 
     else:
         return redirect(url_for('redirect_url'))
+
 
 @app.route('/<db>/ehistoric', methods=['GET'])
 def ehistoric(db):
@@ -117,9 +170,11 @@ def ehistoric(db):
     data = cursor.fetchall()
     return render_template('ehistoric.html', data=data, db_name=db)
 
+
 @app.route('/<db>/deleconf/<eid>', methods=['GET'])
 def delete_eid_conf(db, eid):
-    return render_template('deleconf.html', db_name = db, eid = eid)
+    return render_template('deleconf.html', db_name=db, eid=eid)
+
 
 @app.route('/<db>/edelete/<eid>', methods=['GET'])
 def delete_eid(db, eid):
@@ -138,17 +193,20 @@ def delete_eid(db, eid):
 
     try:
         if data[0][0] > 0:
-            recent_pass_perf = float("{0:.2f}".format((data[0][0]/data[0][1]*100)))
+            recent_pass_perf = float("{0:.2f}".format((data[0][0] / data[0][1] * 100)))
         else:
             recent_pass_perf = 0
     except:
         recent_pass_perf = 0
 
     # update pytesthistoric project
-    cursor.execute("UPDATE pytesthistoric.TB_PROJECT SET Total_Executions=%s, Last_Updated=now(), Recent_Pass_Perc=%s WHERE Project_Name='%s';" % (int(exe_data[0][0]), recent_pass_perf, db))
+    cursor.execute(
+        "UPDATE pytesthistoric.TB_PROJECT SET Total_Executions=%s, Last_Updated=now(), Recent_Pass_Perc=%s WHERE Project_Name='%s';" % (
+        int(exe_data[0][0]), recent_pass_perf, db))
     # commit changes
     mysql.connection.commit()
-    return redirect(url_for('ehistoric', db = db))
+    return redirect(url_for('ehistoric', db=db))
+
 
 @app.route('/<db>/tmetrics', methods=['GET', 'POST'])
 def tmetrics(db):
@@ -168,6 +226,7 @@ def tmetrics(db):
     data = cursor.fetchall()
     return render_template('tmetrics.html', data=data, db_name=db)
 
+
 @app.route('/<db>/metrics/<eid>', methods=['GET'])
 def metrics(db, eid):
     cursor = mysql.connection.cursor()
@@ -184,7 +243,9 @@ def metrics(db, eid):
     # get execution info
     cursor.execute("SELECT * from TB_EXECUTION WHERE Execution_Id=%s;" % eid)
     exe_data = cursor.fetchall()
-    return render_template('metrics.html', suite_data=suite_data, test_data = test_data, project_image= project_image[0][0], exe_data = exe_data)
+    return render_template('metrics.html', suite_data=suite_data, test_data=test_data,
+                           project_image=project_image[0][0], exe_data=exe_data)
+
 
 @app.route('/<db>/tmetrics/<eid>', methods=['GET', 'POST'])
 def eid_tmetrics(db, eid):
@@ -201,6 +262,7 @@ def eid_tmetrics(db, eid):
     data = cursor.fetchall()
     return render_template('eidtmetrics.html', data=data, db_name=db)
 
+
 @app.route('/<db>/failures/<eid>', methods=['GET', 'POST'])
 def eid_failures(db, eid):
     cursor = mysql.connection.cursor()
@@ -216,27 +278,33 @@ def eid_failures(db, eid):
     data = cursor.fetchall()
     return render_template('failures.html', data=data, db_name=db)
 
+
 @app.route('/<db>/search', methods=['GET', 'POST'])
 def search(db):
     if request.method == "POST":
         search = request.form['search']
         cursor = mysql.connection.cursor()
         use_db(cursor, db)
-        cursor.execute("SELECT * from TB_TEST WHERE Test_Name LIKE '%{name}%' OR Test_Status LIKE '%{name}%' OR Execution_Id LIKE '%{name}%' ORDER BY Execution_Id DESC LIMIT 10000;".format(name=search))
+        cursor.execute(
+            "SELECT * from TB_TEST WHERE Test_Name LIKE '%{name}%' OR Test_Status LIKE '%{name}%' OR Execution_Id LIKE '%{name}%' ORDER BY Execution_Id DESC LIMIT 10000;".format(
+                name=search))
         data = cursor.fetchall()
         return render_template('search.html', data=data, db_name=db)
     else:
         return render_template('search.html', db_name=db)
 
+
 @app.route('/<db>/flaky', methods=['GET'])
 def flaky(db):
     cursor = mysql.connection.cursor()
     use_db(cursor, db)
-    cursor.execute("SELECT Execution_Id from ( SELECT Execution_Id from TB_EXECUTION ORDER BY Execution_Id DESC LIMIT 5 ) as tmp ORDER BY Execution_Id ASC LIMIT 1;")
+    cursor.execute(
+        "SELECT Execution_Id from ( SELECT Execution_Id from TB_EXECUTION ORDER BY Execution_Id DESC LIMIT 5 ) as tmp ORDER BY Execution_Id ASC LIMIT 1;")
     last_five = cursor.fetchall()
     cursor.execute("SELECT Execution_Id from TB_EXECUTION ORDER BY Execution_Id DESC LIMIT 5;")
     last_five_ids = cursor.fetchall()
-    sql_query = "SELECT Execution_Id, Test_Name, Test_Status from TB_TEST WHERE Execution_Id >= %s ORDER BY Execution_Id DESC;" % (str(last_five[0][0]))
+    sql_query = "SELECT Execution_Id, Test_Name, Test_Status from TB_TEST WHERE Execution_Id >= %s ORDER BY Execution_Id DESC;" % (
+        str(last_five[0][0]))
 
     cursor.execute(sql_query)
     data = cursor.fetchall()
@@ -247,6 +315,7 @@ def flaky(db):
     # print(sorted_data)
     return render_template('flaky.html', data=sorted_data, db_name=db, builds=last_five_ids)
 
+
 @app.route('/<db>/compare', methods=['GET', 'POST'])
 def compare(db):
     if request.method == "POST":
@@ -255,20 +324,24 @@ def compare(db):
         cursor = mysql.connection.cursor()
         use_db(cursor, db)
         # fetch first eid tets results
-        cursor.execute("SELECT Execution_Id, Test_Name, Test_Status, Test_Time, Test_Error from TB_TEST WHERE Execution_Id=%s;" % eid_one )
+        cursor.execute(
+            "SELECT Execution_Id, Test_Name, Test_Status, Test_Time, Test_Error from TB_TEST WHERE Execution_Id=%s;" % eid_one)
         first_data = cursor.fetchall()
         # fetch second eid test results
-        cursor.execute("SELECT Execution_Id, Test_Name, Test_Status, Test_Time, Test_Error from TB_TEST WHERE Execution_Id=%s;" % eid_two )
+        cursor.execute(
+            "SELECT Execution_Id, Test_Name, Test_Status, Test_Time, Test_Error from TB_TEST WHERE Execution_Id=%s;" % eid_two)
         second_data = cursor.fetchall()
         # combine both tuples
         data = first_data + second_data
         sorted_data = sort_tests(data)
-        return render_template('compare.html', data=sorted_data, db_name=db, fb = eid_one, sb = eid_two)
+        return render_template('compare.html', data=sorted_data, db_name=db, fb=eid_one, sb=eid_two)
     else:
         return render_template('compare.html', db_name=db)
 
+
 def use_db(cursor, db_name):
     cursor.execute("USE %s;" % db_name)
+
 
 def sort_tests(data_list):
     out = {}
@@ -279,8 +352,8 @@ def sort_tests(data_list):
             out[elem[1]] = list(elem)
     return [tuple(values) for values in out.values()]
 
-def main():
 
+def main():
     args = parse_options()
 
     app.config['MYSQL_HOST'] = args.sqlhost

@@ -73,14 +73,8 @@
                         <form id="db-form" class="form" action="" method="post">
                             <h3 class="text-center text-info">Create Project</h3>
                             <div class="form-group">
-                                <label for="dbname" class="text-info">Project Name:</label><br>
-                                <input type="text" name="dbname" id="dbname" class="form-control txt" onkeypress="return blockSpecialChar(event)">
+                                <label class="text-info">Project Name: {{db_name}}</label><br>
                             </div>
-                            <ul style="color:silver;">
-                                <li>Avoid space & special char in name</li>
-                                <li>Avoid duplicate names</li>
-                                <li>Avoid using number in first character</li>
-                            </ul>
 							<div class="form-group">
                                 <label for="dbdesc" class="text-info">Project Description:</label><br>
                                 <input type="text" name="dbdesc" id="dbdesc" class="form-control">
@@ -91,7 +85,7 @@
                             </div>
 							<div class="form-group">
                                 <label for="dbimage" class="text-info">Project Image:</label><br>
-                                <input type="text" name="dbimage" id="dbimage" onclick="this.select();" value="https://i.ibb.co/T4nNTX5/Pytesthistoric.png" class="form-control">
+                                <input type="text" name="dbimage" id="dbimage" onclick="this.select();" class="form-control">
                             </div>
                             <table style="width:100%">
                                 <tr>
@@ -102,7 +96,7 @@
                                     </td>
                                     <td>
                                         <div class="text-right">
-                                            <button id="submit" type="submit" disabled="disabled" class="btn btn-info">Create</button>
+                                            <button id="submit" type="submit" class="btn btn-info">Update</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -115,15 +109,6 @@
     </div>
     <script>
         var submitButton = document.getElementById("submit");
-        var textField = document.getElementById("dbname");
-
-        textField.onkeyup = function(){
-            if (textField.value == "") {
-                submitButton.disabled = true;
-            } else {
-                submitButton.disabled = false;
-            }
-        }
     </script>
 </body>
 </html>
