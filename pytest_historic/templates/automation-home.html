@@ -47,31 +47,45 @@
         <button class="navbar-toggler navbar-toggler-right custom-toggler" type="button" data-toggle="collapse" data-target="#collapsibleNavbar">
             <span class="navbar-toggler-icon "></span>
         </button>
+        <div class="collapse navbar-collapse " id="collapsibleNavbar">
+            <ul class="navbar-nav ml-auto ">
+            <li class="nav-item">
+                <a class="btn btn-light text-primary" type=button href="/newdb"><i class="fa fa-plus-circle"></i> <b>New Project</b></a>
+            </li>
+            </ul>
+        </div>
     </nav>
     <div class="container box">
         <div class="row">
-            <div class="col-sm-6 col-md-4 col-lg-3 mt-4">
+            {% for item in data %}
+                <div class="col-sm-6 col-md-4 col-lg-3 mt-4">
                     <div class="card columns">
-                        <img src="https://www.mindtree.com/sites/default/files/2018-05/Intelligent%20Automation.jpg" class="card-img-top" alt="logo" title="Automation">
+                        <img src="{{item[3]}}" class="card-img-top" alt="logo" title="{{item[2]}}">
                         <div class="card-body">
-                            <h5 class="card-title text" style="text-transform:capitalize;" title="Automation">Automation</h5>
+                            <h5 class="card-title text" style="text-transform:capitalize;" title="{{item[1]}}">{{item[1]}}</h5>
+                            <small class="text-muted"><i class="fa fa-clock-o fav" title="Last Updated: {{item[5]}}"></i> {{item[5]}}</small>
+                            <hr>
+                            <table class="text-muted" style="width:100%;text-align:center;">
+                                <tbody>
+                                    <tr style="font-size:28px;">
+                                        <td style="color:rgb(80, 1, 80)">{{item[6]}}</td>
+                                        <td style="color:green">{{item[7]}}</td>
+                                    </tr>
+                                    <tr style="font-size:9px;">
+                                        <td style="color:silver">Total Executions</td>
+                                        <td style="color:silver">Recent Pass %</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                         <div class="card-footer">
-                           <a type="button" href="automation-home" class="btn btn-light float-center btn-sm"><i class="fa fa-play"></i> View</a>
+                            <a type="button" href="{{item[1]}}/deldbconf" class="btn btn-light float-left btn-sm"><i class="fa fa-trash-o"></i> Delete</a>
+                            <a type="button" href="{{item[1]}}/editdb" class="btn btn-light float-center btn-sm"><i class="fa fa-play"></i> Edit</a>
+                            <a type="button" href="{{item[1]}}/dashboard" class="btn btn-light float-right btn-sm"><i class="fa fa-play"></i> View</a>
                         </div>
                     </div>
                 </div>
-            <div class="col-sm-6 col-md-4 col-lg-3 mt-4">
-                    <div class="card columns">
-                        <img src="https://www.perforce.com/sites/default/files/image/2018-06/image-blog-what-is-static-analysis.jpg" class="card-img-top" alt="logo" title="Static Code Analysis">
-                        <div class="card-body">
-                            <h5 class="card-title text" style="text-transform:capitalize;" title="Static Code Analysis">Static Code Analysis</h5>
-                        </div>
-                        <div class="card-footer">
-                           <a type="button" href="sa-home" class="btn btn-light float-center btn-sm"><i class="fa fa-play"></i> View</a>
-                        </div>
-                    </div>
-                </div>
+            {% endfor %}
         </div>
     </div>
 </body>

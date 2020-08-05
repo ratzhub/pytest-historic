@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <link href="https://img.icons8.com/cotton/64/000000/time-machine.png" rel="shortcut icon" type="image/x-icon"/>
-    <title>Pytest Historic - Metrics</title>
+    <title>Pytest Historic - Test Metrics</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
@@ -52,32 +52,26 @@
                 </button>
                 <a class="navbar-brand" href="/home">Pytest Historic</a>
             </div>
-            <div class="collapse navbar-collapse" id="myNavbar">
-                <ul class="nav navbar-nav">
-                    <li class="tablinks"><a href="./dashboard"><i class="fa fa-dashboard"></i> Dashboard</a></li>
-                    <li class="tablinks"><a href="./ehistoric"><i class="fa fa-history"></i> History</a></li>
-                    <li class="tablinks active" onclick="executeDataTable()"><a href="./tmetrics"><i class="fa fa-flask"></i> Metrics</a></li>
-                    <li class="tablinks"><a href="./flaky"><i class="fa fa-bolt"></i> Flaky</a></li>
-                    <li class="tablinks"><a href="./search"><i class="fa fa-search"></i> Search</a></li>
-                    <li class="tablinks"><a href="./compare"><i class="fa fa-sliders"></i> Compare</a></li>
-                </ul>
-            </div>
         </div>
     </nav>
 
     <div class="tabcontent">
         <div class="d-flex flex-column flex-md-row align-items-center p-1 mb-3 bg-light border-bottom shadow-sm">
-            <h3 class="my-0 mr-md-auto font-weight-normal" style="text-transform: capitalize;">{{db_name}} - Recent Metrics</h3>
+            <h3 class="my-0 mr-md-auto font-weight-normal" style="text-transform: capitalize;">{{db_name}} - Defect Metrics</h3>
         </div>
         <hr>
-        <table class="table table-striped" id="tmetrics">
+        <table class="table table-striped" id="sa-eiddmetrics">
             <thead>
                 <tr>
                     <th>EID</th>
-                    <th>Test Case</th>
-                    <th>Status</th>
-                    <th>Time (s)</th>
-                    <th>Error</th>
+                    <th>Defect Category</th>
+                    <th>Defect Check</th>
+                    <th>Defect Priority</th>
+                    <th>File Path</th>
+                    <th>Function</th>
+                    <th>Begin Line</th>
+                    <th>End Line</th>
+                    <th>Column</th>
                     <th>Comment</th>
                     <th></th>
                 </tr>
@@ -86,52 +80,43 @@
                 {% for item in data %}
                     <tr>
                         <td> {{item[1]}}</td>
-                        <td style="word-wrap: break-word;max-width: 250px; white-space: normal; text-align: left;"> {{item[2]}}</td>
-                        {% if (item[3] == "PASS") %}
-                            <td style="color: green;"> {{item[3]}}</td>
-                        {% elif (item[3] == "FAIL") %}
-                            <td style="color: red;"> {{item[3]}}</td>
-                        {% else %}
-                            <td style="color: brown;"> {{item[3]}}</td>
-                        {% endif %}
+                        <td> {{item[2]}}</td>
+                        <td> {{item[3]}}</td>
                         <td> {{item[4]}}</td>
-                        <td style="word-wrap: break-word;max-width: 250px; white-space: normal; text-align: left;"> {{item[5]}}</td>
-                        <td style="word-wrap: break-word;max-width: 250px; white-space: normal; text-align: left;">
-                            {% if (item[3] != "PASS" and item[6] != None) %}
-                                {{item[6]}}
-                            {% endif %}
-                        </td>
+                        <td> {{item[5]}}</td>
+                        <td> {{item[6]}}</td>
+                        <td> {{item[7]}}</td>
+                        <td> {{item[8]}}</td>
+                        <td> {{item[9]}}</td>
                         <td>
-                            {% if (item[3] != "PASS" ) %}
-                                <a href="#" data-toggle="modal" data-target="#updateComment{{item[0]}}" class="btn" title="Update Comment"><i class="fa fa-pencil"></i></a>
-                                <div id="updateComment{{item[0]}}" class="modal fade" role="dialog" style="color:black;">
-                                    <div class="modal-dialog">
-                                        <!-- Modal content-->
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                                                <h4 class="modal-title" style="text-align-last: left">{{item[2]}}</h4>
-                                            </div>
-                                            <div class="modal-body">
-                                                <form class="example" method="post" action="">
-                                                    <div class="form-group">
-                                                        <div style="text-align:left !important;"><b>Comment:</b></div>
-                                                        <textarea id="textField" rows="5" type="text" name="textField" onclick="this.select();" style="min-width: 100%">{{item[6]}}</textarea>
-                                                    </div>
-                                                    <div class="form-group">
-                                                        <input readonly id="rowField" type="hidden" value="{{item[0]}}" name="rowField" style="min-width: 50%"></input>
-                                                        <button id="submit" type="submit" class="btn btn-primary">Update</button>
-                                                    </div>
-                                                </form>
-                                                <small>Use escaping character while using special characters or single quote</small>
-                                            </div>
-                                            <div class="modal-footer d-flex justify-content-center">
-                                                <a href="#" type="button" class="btn btn-danger" data-dismiss="modal">Cancel</a>
-                                            </div>
+                            <a href="#" data-toggle="modal" data-target="#updateComment{{item[0]}}" class="btn" title="Update Comment"><i class="fa fa-pencil"></i></a>
+                            <div id="updateComment{{item[0]}}" class="modal fade" role="dialog" style="color:black;">
+                                <div class="modal-dialog">
+                                    <!-- Modal content-->
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                            <h4 class="modal-title" style="text-align-last: left">Function - {{item[8]}}</h4>
+                                        </div>
+                                        <div class="modal-body">
+                                            <form class="example" method="post" action="">
+                                                <div class="form-group">
+                                                    <div style="text-align:left !important;"><b>Comment:</b></div>
+                                                    <textarea id="textField" rows="5" type="text" name="textField" onclick="this.select();" style="min-width: 100%">{{item[6]}}</textarea>
+                                                </div>
+                                                <div class="form-group">
+                                                    <input readonly id="rowField" type="hidden" value="{{item[0]}}" name="rowField" style="min-width: 50%"></input>
+                                                    <button id="submit" type="submit" class="btn btn-primary">Update</button>
+                                                </div>
+                                            </form>
+                                            <small>Use escaping character while using special characters or single quote</small>
+                                        </div>
+                                        <div class="modal-footer d-flex justify-content-center">
+                                            <a href="#" type="button" class="btn btn-danger" data-dismiss="modal">Cancel</a>
                                         </div>
                                     </div>
                                 </div>
-                            {% endif %}
+                            </div>
                         </td>
                     </tr>
                 {% endfor %}
@@ -141,7 +126,7 @@
     <script>
         function executeDataTable() {
             var fileTitle = "TestMetrics";
-            $('#tmetrics').DataTable(
+            $('#sa-eiddmetrics').DataTable(
                 {
                     retrieve: true,
                     "order": [[ 2, "asc" ]],
