@@ -144,7 +144,7 @@ def sa_add_db():
             cursor.execute(
                 "Create table SA_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Component_Version TEXT, Build_Version TEXT, Pipeline_Link TEXT, Artifact_Link TEXT, Priority_High INT, Priority_Low INT, Priority_Medium INT, Git_Commit TEXT, Git_Url TEXT, Project_Dir TEXT, Commits_After_Tag INT, Git_Branch TEXT);")
             cursor.execute(
-                "Create table SA_DEFECT ( Defect_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Defect_Category TEXT, Defect_Check TEXT, Defect_Priority TEXT, Defect_File_Path TEXT, Defect_Function TEXT, Defect_Begin_Line INT, Defect_End_Line INT, Defect_Column INT, Defect_Comment TEXT, Defect_Link TEXT`);")
+                "Create table SA_DEFECT ( Defect_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Defect_Category TEXT, Defect_Check TEXT, Defect_Priority TEXT, Defect_File_Path TEXT, Defect_Function TEXT, Defect_Begin_Line INT, Defect_End_Line INT, Defect_Column INT, Defect_Comment TEXT, Defect_Link TEXT);")
             mysql.connection.commit()
         except Exception as e:
             print(traceback.format_exc())
