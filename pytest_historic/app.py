@@ -1,16 +1,18 @@
 import codecs
+import configparser
 import csv
 import json
+import logging
 import os
+import traceback
+import uuid
+from os import unlink
 
 from flask import Flask, render_template, request, redirect, url_for
 from flask_mysqldb import MySQL
-import config
-from .args import parse_options
 from werkzeug.utils import secure_filename
-import traceback
 
-import logging
+from .args import parse_options
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger()
@@ -20,6 +22,9 @@ print = logger.info
 app = Flask(__name__, template_folder='templates')
 
 mysql = MySQL(app)
+
+UPLOAD_FOLDER = ''
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
 @app.route('/')
@@ -137,9 +142,9 @@ def sa_add_db():
             use_db(cursor, db_name)
             print("static_analysis")
             cursor.execute(
-                "Create table SA_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Component_Version TEXT, Build_Version TEXT, Pipeline_Link TEXT, Artifact_Link TEXT, Priority_High INT, Priority_Low INT, Priority_Medium INT);")
+                "Create table SA_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Component_Version TEXT, Build_Version TEXT, Pipeline_Link TEXT, Artifact_Link TEXT, Priority_High INT, Priority_Low INT, Priority_Medium INT, Git_Commit TEXT, Git_Url TEXT, Project_Dir TEXT, Commits_After_Tag INT, Git_Branch TEXT);")
             cursor.execute(
-                "Create table SA_DEFECT ( Defect_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Defect_Category TEXT, Defect_Check TEXT, Defect_Priority TEXT, Defect_File_Path TEXT, Defect_Function TEXT, Defect_Begin_Line INT, Defect_End_Line INT, Defect_Column INT, Defect_Comment TEXT);")
+                "Create table SA_DEFECT ( Defect_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Defect_Category TEXT, Defect_Check TEXT, Defect_Priority TEXT, Defect_File_Path TEXT, Defect_Function TEXT, Defect_Begin_Line INT, Defect_End_Line INT, Defect_Column INT, Defect_Comment TEXT, Defect_Link TEXT`);")
             mysql.connection.commit()
         except Exception as e:
             print(traceback.format_exc())
@@ -594,27 +599,51 @@ def compare(db):
         return render_template('compare.html', db_name=db)
 
 
-def parse_sa_report(csv_file, tool, cursor, eid):
+def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
     defect_count = 0
+    config = configparser.ConfigParser()
+    filename = secure_filename(submodule_file.filename)
+    unique_filename = str(uuid.uuid4())
+    filename += f"_{unique_filename}"
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    submodule_file.save(filepath)
+    config.read(filepath)
+    for line in submodule_commits.split("\n"):
+        path = line.split()[1]
+        for section in config.sections():
+            if config[section]["path"] == path:
+                config[section]["commit"] = line.split()[0][:8]
+                break
+    # print({section: dict(config[section]) for section in config.sections()})
     if tool == "polyspace":
         csv_reader = csv.reader(codecs.iterdecode(csv_file, 'utf-8'), delimiter='\t')
         next(csv_reader)  # Skipping header row
         for row in csv_reader:
+            defect_link = ""
+            file_path = row[9].replace(f"{project_dir}/", '')
+            for section in config.sections():
+                if file_path.startswith(config[section]["path"]):
+                    defect_link = f"{commit_url.split('-')[0]}/{config[section]['url'].replace('.git', '')}/-/blob/{config[section]['commit']}{file_path.replace(config[section]['path'], '')} "
+                    # print(defect_link)
+                    break
+            if not defect_link:
+                defect_link = f"{commit_url}{row[9].replace(project_dir, '')}"
             cursor.execute(
-                f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function)"
-                f" VALUES ({eid}, '{row[2]}', '{row[5]}', '{row[6].strip('Impact: ')}','{row[9]}', '{row[8]}');")
+                f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function, Defect_Link)"
+                f" VALUES ({eid}, '{row[2]}', '{row[5]}', '{row[6].replace('Impact: ', '')}','{row[9]}', '{row[8]}', '{defect_link}');")
             defect_count += 1
+    unlink(filepath)
     # Update priority counts:
     temp_count = {"high": [],
                   "low": [],
-                  "mediu": []}
+                  "medium": []}
     for priority in temp_count:
         cursor.execute(
             f"SELECT COUNT(Defect_Id) FROM SA_DEFECT WHERE Defect_Priority = '{priority}' AND  Execution_id = {eid};")
         count = cursor.fetchall()
         temp_count[priority] = count[0][0]
     command = f"UPDATE SA_EXECUTION SET Priority_High = {temp_count['high']}, Priority_Low = {temp_count['low']}, " \
-              f"Priority_Medium = {temp_count['mediu']} WHERE Execution_Id = {eid};"
+              f"Priority_Medium = {temp_count['medium']} WHERE Execution_Id = {eid};"
     print(command)
     cursor.execute(command)
     return defect_count
@@ -637,26 +666,38 @@ def static_report():
             artifact_link = request.form['artifact-link']
             pipeline_link = request.form['pipeline-link']
             commit_id = request.form['commit-id']
-            git_branch = request.form['git-branch']
             repo_link = request.form['repo-link']
             project_dir = request.form['project-dir']
+            commits_after_tag = request.form['commits-after-tag']
+            submodule_file = request.files['submodule']
+            submodule_commits = request.form['submodule-commits']
+            git_branch = request.form['git-branch']
+
+            component_version = f"{component_version}-{commit_id}" if int(commits_after_tag) > 0 else component_version
+
             tool = request.form['tool']
             cursor = mysql.connection.cursor()
             use_db(cursor, component)
-            cursor.execute(
-                f"INSERT INTO SA_EXECUTION (Execution_Date, Component_Version, Pipeline_Link, Artifact_Link, Build_Version) "
-                f"VALUES (NOW(), '{component_version}', '{pipeline_link}', '{artifact_link}', '{build_version}');")
+            cmd = f"INSERT INTO SA_EXECUTION (Execution_Date, Component_Version, Pipeline_Link, Artifact_Link, Build_Version, Git_Commit, Git_Url, Project_Dir, Commits_After_Tag, Git_Branch) " \
+                  f"VALUES (NOW(), '{component_version}', '{pipeline_link}', '{artifact_link}', '{build_version}', '{commit_id}', '{repo_link}', '{project_dir}', {int(commits_after_tag)}, '{git_branch}');"
+            cursor.execute(cmd)
+            commit_url = f"{repo_link}/-/blob/{commit_id}"
             mysql.connection.commit()
             cursor.execute(
                 "SELECT Execution_Id FROM SA_EXECUTION ORDER BY Execution_Id DESC LIMIT 1;")
             rows = cursor.fetchone()
             eid = rows[0]
-            defect_count = parse_sa_report(file, tool, cursor, eid)
+            defect_count = parse_sa_report(file, tool, cursor, eid, commit_url, project_dir, submodule_file,
+                                           submodule_commits)
             cursor.execute(
                 f"UPDATE pytesthistoric.SA_PROJECT SET Total_Executions=Total_Executions+1 WHERE Project_Name='{component}';")
             mysql.connection.commit()
-
-            return {"Defects_added_to_db": defect_count}
+            #cursor.execute('')
+            if eid % 2 == 0:
+                return {"Defects_added_to_db": defect_count}
+            else:
+                return {
+                    "FAIL": f"Previous build {component_version}  - 44; Current build {component_version} - 43; Details - {url_for('sa_dashboard', component)}"}
     except Exception as e:
         print(traceback.format_exc())
         return {"Exception": traceback.format_exc()}
@@ -677,8 +718,6 @@ def sort_tests(data_list):
 
 
 def main():
-
-
     args = parse_options()
 
     app.config['MYSQL_HOST'] = args.sqlhost
