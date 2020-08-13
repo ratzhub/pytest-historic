@@ -697,7 +697,7 @@ def static_report():
                 return {"Defects_added_to_db": defect_count}
             else:
                 return {
-                    "FAIL": f"Previous build {component_version}  - 44; Current build {component_version} - 43; Details - {url_for('sa_dashboard', component)}"}
+                    "FAIL": f"Previous build {component_version}  - 44; Current build {component_version} - 43; Details - {url_for('sa_dashboard', db=component)}"}
     except Exception as e:
         print(traceback.format_exc())
         return {"Exception": traceback.format_exc()}
