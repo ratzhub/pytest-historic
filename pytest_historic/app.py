@@ -1,6 +1,4 @@
-import codecs
 import configparser
-import csv
 import json
 import logging
 import os
@@ -8,6 +6,7 @@ import traceback
 import uuid
 from os import unlink
 
+import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for
 from flask_mysqldb import MySQL
 from werkzeug.utils import secure_filename
@@ -144,7 +143,7 @@ def sa_add_db():
             cursor.execute(
                 "Create table SA_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Component_Version TEXT, Build_Version TEXT, Pipeline_Link TEXT, Artifact_Link TEXT, Priority_High INT, Priority_Low INT, Priority_Medium INT, Git_Commit TEXT, Git_Url TEXT, Project_Dir TEXT, Commits_After_Tag INT, Git_Branch TEXT);")
             cursor.execute(
-                "Create table SA_DEFECT ( Defect_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Defect_Category TEXT, Defect_Check TEXT, Defect_Priority TEXT, Defect_File_Path TEXT, Defect_Function TEXT, Defect_Begin_Line INT, Defect_End_Line INT, Defect_Column INT, Defect_Comment TEXT, Defect_Link TEXT);")
+                "Create table SA_DEFECT ( Defect_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Defect_Category TEXT, Defect_Check TEXT, Defect_Priority TEXT, Defect_File_Path TEXT, Defect_Function TEXT, Defect_Begin_Line INT, Defect_End_Line INT, Defect_Column INT, Defect_Comment TEXT, Defect_Link TEXT, Defect_Fingerprint TEXT);")
             mysql.connection.commit()
         except Exception as e:
             print(traceback.format_exc())
@@ -609,6 +608,7 @@ def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submod
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         submodule_file.save(filepath)
         config.read(filepath)
+        unlink(filepath)
         for line in submodule_commits.split("\n"):
             path = line.split()[1]
             for section in config.sections():
@@ -617,23 +617,23 @@ def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submod
                     break
     # print({section: dict(config[section]) for section in config.sections()})
     if tool == "polyspace":
-        csv_reader = csv.reader(codecs.iterdecode(csv_file, 'utf-8'), delimiter='\t')
-        next(csv_reader)  # Skipping header row
-        for row in csv_reader:
+        # csv_reader = csv.reader(codecs.iterdecode(csv_file, 'utf-8'), delimiter='\t')
+        # next(csv_reader) # Skipping header row
+        df = pd.read_csv(csv_file, sep='\t', header=[0])
+        for i in range(df.shape[0]):
             defect_link = str()
-            file_path = row[9].replace(f"{project_dir}/", '')
+            file_path = df['File'][i].replace(f"{project_dir}/", '')
             for section in config.sections():
                 if file_path.startswith(config[section]["path"]):
                     defect_link = f"{commit_url.split('-')[0]}/{config[section]['url'].replace('.git', '')}/-/blob/{config[section]['commit']}{file_path.replace(config[section]['path'], '')} "
                     # print(defect_link)
                     break
             if not defect_link:
-                defect_link = f"{commit_url}{row[9].replace(project_dir, '')}"
+                defect_link = f"{commit_url}{df['File'][i].replace(project_dir, '')}"
             cursor.execute(
-                f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function, Defect_Link)"
-                f" VALUES ({eid}, '{row[2]}', '{row[5]}', '{row[6].replace('Impact: ', '')}','{row[9]}', '{row[8]}', '{defect_link}');")
+                f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function, Defect_Link, Defect_Fingerprint)"
+                f" VALUES ({eid}, '{df['Group'][i]}', '{df['Check'][i]}', '{df['Information'][i].replace('Impact: ', '')}','{df['File'][i]}', '{df['Function'][i]}', '{defect_link}',  '{df['Key'][i]}');")
             defect_count += 1
-    unlink(filepath)
     # Update priority counts:
     temp_count = {"high": [],
                   "low": [],
@@ -676,7 +676,8 @@ def static_report():
                 submodule_commits = request.form['submodule-commits']
             git_branch = request.form['git-branch']
 
-            component_version = f"{component_version}-{commit_id}" if int(commits_after_tag) > 0 else component_version
+            component_version = f"{component_version}-{git_branch}-{commit_id}" if int(
+                commits_after_tag) > 0 else component_version
 
             tool = request.form['tool']
             cursor = mysql.connection.cursor()
@@ -696,7 +697,7 @@ def static_report():
                 f"UPDATE pytesthistoric.SA_PROJECT SET Total_Executions=Total_Executions+1 WHERE Project_Name='{component}';")
             mysql.connection.commit()
             cursor.execute(
-                f'SELECT Execution_Id FROM SA_EXECUTION WHERE Git_Branch={git_branch} AND  Git_Commit<>{commit_id} ORDER BY Execution_Id DESC LIMIT 1;')
+                f'SELECT Execution_Id FROM SA_EXECUTION WHERE Git_Branch="{git_branch}" AND  Git_Commit<>"{commit_id}" ORDER BY Execution_Id DESC LIMIT 1;')
             prev_eid = cursor.fetchone()
             if prev_eid:
                 prev_eid = prev_eid[0]
