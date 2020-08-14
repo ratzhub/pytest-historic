@@ -24,7 +24,8 @@ setup(
           'pytest',
           'config',
           'flask',
-          'flask-mysqldb'
+          'flask-mysqldb',
+          'pandas'
       ],
       entry_points={
           'console_scripts': [
