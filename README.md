@@ -13,7 +13,7 @@ Pytest-historic is a free, custom html report which provides historical pytest e
 
 ---
 
-## Pytest Historic Overview
+## Chitragupta Overview
 
  > <img src="https://i.ibb.co/L8vXqrz/gif.gif" alt="Overview">
  

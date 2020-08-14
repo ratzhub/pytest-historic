@@ -4,7 +4,7 @@ setup(
       name='pytest-historic',
       version="0.1.2",
       description='Custom report to display pytest historical execution records',
-      long_description='Pytest Historic is custom report to display historical execution records using MySQL + Flask',
+      long_description='Chitragupta is custom report to display historical execution records using MySQL + Flask',
       classifiers=[
           'Framework :: Pytest',
           'Programming Language :: Python',

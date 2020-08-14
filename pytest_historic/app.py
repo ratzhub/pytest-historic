@@ -598,6 +598,28 @@ def compare(db):
         return render_template('compare.html', db_name=db)
 
 
+@app.route('/<db>/sa-compare', methods=['GET', 'POST'])
+def sa_compare(db):
+    if request.method == "POST":
+        eid_one = request.form['eid_one']
+        eid_two = request.form['eid_two']
+        cursor = mysql.connection.cursor()
+        use_db(cursor, db)
+        # fetch first eid defect results
+        # cursor.execute(
+        #     "SELECT Execution_Id, Test_Name, Test_Status, Test_Time, Test_Error from TB_TEST WHERE Execution_Id=%s;" % eid_one)
+        cursor.execute("SELECT * from SA_DEFECT WHERE Execution_Id=%s;" % eid_one)
+        first_data = cursor.fetchall()
+        # fetch second eid defect results
+        cursor.execute("SELECT * from SA_DEFECT WHERE Execution_Id=%s;" % eid_two)
+        second_data = cursor.fetchall()
+        # combine both tuples
+        data = first_data + second_data
+        sorted_data = sort_tests(data)
+        return render_template('sa-compare.html', data=sorted_data, db_name=db, fb=eid_one, sb=eid_two)
+    else:
+        return render_template('sa-compare.html', db_name=db)
+
 def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
     defect_count = 0
     config = configparser.ConfigParser()
