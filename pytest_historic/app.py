@@ -605,6 +605,22 @@ def sa_compare(db):
         eid_two = request.form['eid_two']
         cursor = mysql.connection.cursor()
         use_db(cursor, db)
+        cursor.execute(f"SELECT Defect_Category, Defect_Check, Defect_Priority, Defect_Function, Defect_Link FROM "
+                       f"SA_DEFECT WHERE Execution_Id={eid_one} AND Defect_Fingerprint NOT IN "
+                       f"(SELECT Defect_Fingerprint FROM  SA_DEFECT WHERE Execution_Id={eid_two});")
+        data = cursor.fetchall()
+        return render_template('sa-difference.html', data=data, db_name=db)
+    else:
+        return render_template('sa-compare.html', db_name=db)
+
+
+@app.route('/<db>/sa-difference', methods=['GET', 'POST'])
+def sa_difference(db):
+    if request.method == "POST":
+        eid_one = request.form['eid_one']
+        eid_two = request.form['eid_two']
+        cursor = mysql.connection.cursor()
+        use_db(cursor, db)
         # fetch first eid defect results
         # cursor.execute(
         #     "SELECT Execution_Id, Test_Name, Test_Status, Test_Time, Test_Error from TB_TEST WHERE Execution_Id=%s;" % eid_one)
@@ -619,6 +635,7 @@ def sa_compare(db):
         return render_template('sa-compare.html', data=sorted_data, db_name=db, fb=eid_one, sb=eid_two)
     else:
         return render_template('sa-compare.html', db_name=db)
+
 
 def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
     defect_count = 0
@@ -729,6 +746,7 @@ def static_report():
                 prev_count = temp[0]
                 prev_version = temp[1]
                 if defect_count > prev_count:
+
                     return {
                         "FAIL": f"Previous build {prev_version.split('-')[0]} (Commit-{prev_version.split('-')[-1]}) - {prev_count}; "
                                 f"Current build {component_version.split('-')[0]} (Commit-{component_version.split('-')[2]}) - {defect_count}"}
@@ -738,6 +756,7 @@ def static_report():
                                 f"Current build {component_version.split('-')[0]} (Commit-{component_version.split('-')[2]}) - {defect_count}"}
             else:
                 return {"PASS": f"Defects added to db - {defect_count} (No previous records for branch - {component_version.split('-')[1]}"}
+
     except Exception as e:
         print(traceback.format_exc())
         return {"Exception": traceback.format_exc()}

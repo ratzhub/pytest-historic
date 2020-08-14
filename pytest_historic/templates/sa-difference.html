@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <link href="https://img.icons8.com/cotton/64/000000/time-machine.png" rel="shortcut icon" type="image/x-icon"/>
-    <title>Chitragupta - History</title>
+    <title>Chitragupta - Failures</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
@@ -53,50 +52,33 @@
                 </button>
                 <a class="navbar-brand" href="/home">Chitragupta</a>
             </div>
-            <div class="collapse navbar-collapse" id="myNavbar">
-                <ul class="nav navbar-nav">
-                    <li class="tablinks"><a href="./sa-dashboard"><i class="fa fa-dashboard"></i> Dashboard</a></li>
-                    <li class="tablinks active" onclick="executeDataTable()"><a href="./sa-ehistoric"><i class="fa fa-history"></i> History</a></li>
-                    <li class="tablinks"><a href="./sa-compare"><i class="fa fa-history"></i> Compare</a></li>
-                    <li class="tablinks" onclick="executeDataTable()"><a href="./sa-dmetrics"><i class="fa fa-flask"></i> Metrics</a></li>
-                </ul>
-            </div>
         </div>
     </nav>
 
     <div class="tabcontent">
         <div class="d-flex flex-column flex-md-row align-items-center p-1 mb-3 bg-light border-bottom shadow-sm">
-            <h3 class="my-0 mr-md-auto font-weight-normal" style="text-transform: capitalize;">{{db_name}} - Recent Executions</h3>
+            <h3 class="my-0 mr-md-auto font-weight-normal" style="text-transform: capitalize;">{{db_name}} - New Failures</h3>
         </div>
         <hr>
-        <table class="table table-striped" id="ehist">
+        <table class="table table-striped" id="eidtmetrics">
             <thead>
                 <tr>
-                    <th>EID</th>
-                    <th>Date</th>
-                    <th>Component Version</th>
-                    <th>Build Version</th>
-                    <th>Pipeline Link</th>
-                    <th>Artifact Link</th>
-                    <th>High Priority</th>
-                    <th>Medium Priority</th>
-                    <th>Low Priority</th>
-                    <th>Metrics | Delete</th>
+                    <th>Defect Category</th>
+                    <th>Defect Check</th>
+                    <th>Defect Priority</th>
+                    <th>Defect Function</th>
+                    <th>Defect_Link</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in data %}
                     <tr>
-                        <td title="Click to view {{item[0]}} execution info"><a href="./sa-dmetrics/{{item[0]}}" target="_blank">{{item[0]}}</a></td>
                         <td> {{item[1]}}</td>
-                        <td style="color: teal"> {{item[2]}}</td>
-                        <td style="color: teal"> {{item[3]}}</td>
-                        <td><a href="{{item[4]}}">Link</a></td>
-                        <td><a href="{{item[5]}}">Link</a></td>
-                        <td style="color: brown"> {{item[6]}}</td>
-                        <td style="color: brown"> {{item[8]}}</td>
-                        <td style="color: brown"> {{item[7]}}</td>
-                        <td> <a href="./sa-metrics/{{item[0]}}" target="_blank">View</a> | <a href="./sa-deleconf/{{item[0]}}">Delete</a></td>
+                        <td> {{item[2]}}</td>
+                        <td> {{item[3]}}</td>
+                        <td> {{item[4]}}</td>
+                        <td> {{item[5]}}</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -104,12 +86,20 @@
     </div>
     <script>
         function executeDataTable() {
-            var fileTitle = "ExecutionHistoric";
-            $('#ehist').DataTable(
+            var fileTitle = "TestMetrics";
+            $('#eidtmetrics').DataTable(
                 {
                     retrieve: true,
-                    "order": [[ 0, "desc" ]],
+                    "order": [[ 1, "asc" ]],
                     dom: 'l<".margin" B>frtip',
+
+                    "aoColumnDefs": [ {
+                        "aTargets": [ 4 ],
+                        "mRender": function ( data, type, full ) {
+                        return $("<div/>").html(data).text();
+                        }
+                    } ],
+
                     buttons: [
                          {
 							extend:    'copyHtml5',
@@ -166,7 +156,7 @@
 					} ]
 			   }
             );
-        }
+          }
     </script>
 </body>
 
