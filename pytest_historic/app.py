@@ -602,24 +602,25 @@ def compare(db):
 def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
     defect_count = 0
     config = configparser.ConfigParser()
-    filename = secure_filename(submodule_file.filename)
-    unique_filename = str(uuid.uuid4())
-    filename += f"_{unique_filename}"
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    submodule_file.save(filepath)
-    config.read(filepath)
-    for line in submodule_commits.split("\n"):
-        path = line.split()[1]
-        for section in config.sections():
-            if config[section]["path"] == path:
-                config[section]["commit"] = line.split()[0][:8]
-                break
+    if submodule_commits:
+        filename = secure_filename(submodule_file.filename)
+        unique_filename = str(uuid.uuid4())
+        filename += f"_{unique_filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        submodule_file.save(filepath)
+        config.read(filepath)
+        for line in submodule_commits.split("\n"):
+            path = line.split()[1]
+            for section in config.sections():
+                if config[section]["path"] == path:
+                    config[section]["commit"] = line.split()[0][:8]
+                    break
     # print({section: dict(config[section]) for section in config.sections()})
     if tool == "polyspace":
         csv_reader = csv.reader(codecs.iterdecode(csv_file, 'utf-8'), delimiter='\t')
         next(csv_reader)  # Skipping header row
         for row in csv_reader:
-            defect_link = ""
+            defect_link = str()
             file_path = row[9].replace(f"{project_dir}/", '')
             for section in config.sections():
                 if file_path.startswith(config[section]["path"]):
@@ -657,6 +658,7 @@ curl -X POST "http://10.240.0.87:5000/static" -H  "accept: application/json" -H 
 @app.route('/static', methods=['POST'])
 def static_report():
     print(request.form)
+    submodule_file, submodule_commits = None, None
     try:
         if request.method == 'POST':
             file = request.files['file']
@@ -669,8 +671,9 @@ def static_report():
             repo_link = request.form['repo-link']
             project_dir = request.form['project-dir']
             commits_after_tag = request.form['commits-after-tag']
-            submodule_file = request.files['submodule']
-            submodule_commits = request.form['submodule-commits']
+            if 'submodule-commits' in request.args:
+                submodule_file = request.files['submodule']
+                submodule_commits = request.form['submodule-commits']
             git_branch = request.form['git-branch']
 
             component_version = f"{component_version}-{commit_id}" if int(commits_after_tag) > 0 else component_version
@@ -692,12 +695,24 @@ def static_report():
             cursor.execute(
                 f"UPDATE pytesthistoric.SA_PROJECT SET Total_Executions=Total_Executions+1 WHERE Project_Name='{component}';")
             mysql.connection.commit()
-            #cursor.execute('')
-            if eid % 2 == 0:
-                return {"Defects_added_to_db": defect_count}
+            cursor.execute(
+                f'SELECT Execution_Id FROM SA_EXECUTION WHERE Git_Branch={git_branch} AND  Git_Commit<>{commit_id} ORDER BY Execution_Id DESC LIMIT 1;')
+            prev_eid = cursor.fetchone()
+            if prev_eid:
+                prev_eid = prev_eid[0]
+                cursor.execute(
+                    f"SELECT SUM(Priority_High + Priority_Low + Priority_Medium), Component_Version FROM SA_EXECUTION WHERE Execution_Id = {prev_eid};")
+                temp = cursor.fetchone()
+                prev_count = temp[0]
+                prev_version = temp[1]
+                if defect_count > prev_count:
+                    return {
+                        "FAIL": f"Previous build {prev_version}  - {prev_count}; Current build {component_version} - {defect_count}"}
+                else:
+                    return {
+                        "PASS": f"Previous build {prev_version}  - {prev_count}; Current build {component_version} - {defect_count}"}
             else:
-                return {
-                    "FAIL": f"Previous build {component_version}  - 44; Current build {component_version} - 43; Details - {url_for('sa_dashboard', db=component)}"}
+                return {"PASS": f"Defects added to db - {defect_count}"}
     except Exception as e:
         print(traceback.format_exc())
         return {"Exception": traceback.format_exc()}
