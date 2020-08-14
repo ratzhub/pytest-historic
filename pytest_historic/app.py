@@ -708,12 +708,14 @@ def static_report():
                 prev_version = temp[1]
                 if defect_count > prev_count:
                     return {
-                        "FAIL": f"Previous build {prev_version}  - {prev_count}; Current build {component_version} - {defect_count}"}
+                        "FAIL": f"Previous build {prev_version.split('-')[0]} (Commit-{prev_version.split('-')[-1]}) - {prev_count}; "
+                                f"Current build {component_version.split('-')[0]} (Commit-{component_version.split('-')[2]}) - {defect_count}"}
                 else:
                     return {
-                        "PASS": f"Previous build {prev_version}  - {prev_count}; Current build {component_version} - {defect_count}"}
+                        "PASS": f"Previous build {prev_version.split('-')[0]} (Commit-{prev_version.split('-')[-1]}) - {prev_count}; "
+                                f"Current build {component_version.split('-')[0]} (Commit-{component_version.split('-')[2]}) - {defect_count}"}
             else:
-                return {"PASS": f"Defects added to db - {defect_count}"}
+                return {"PASS": f"Defects added to db - {defect_count} (No previous records for branch - {component_version.split('-')[1]}"}
     except Exception as e:
         print(traceback.format_exc())
         return {"Exception": traceback.format_exc()}
