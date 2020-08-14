@@ -609,6 +609,7 @@ def sa_compare(db):
                        f"SA_DEFECT WHERE Execution_Id={eid_one} AND Defect_Fingerprint NOT IN "
                        f"(SELECT Defect_Fingerprint FROM  SA_DEFECT WHERE Execution_Id={eid_two});")
         data = cursor.fetchall()
+        print(data)
         return render_template('sa-difference.html', data=data, db_name=db)
     else:
         return render_template('sa-compare.html', db_name=db)
