@@ -641,7 +641,7 @@ def sa_difference(db):
 def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
     defect_count = 0
     config = configparser.ConfigParser()
-    if submodule_commits:
+    if not submodule_commits.isspace():
         filename = secure_filename(submodule_file.filename)
         unique_filename = str(uuid.uuid4())
         filename += f"_{unique_filename}"
@@ -698,6 +698,7 @@ curl -X POST "http://10.240.0.87:5000/static" -H  "accept: application/json" -H 
 @app.route('/static', methods=['POST'])
 def static_report():
     print(request.form)
+    print(request.files)
     submodule_file, submodule_commits = None, None
     try:
         if request.method == 'POST':
@@ -711,9 +712,9 @@ def static_report():
             repo_link = request.form['repo-link']
             project_dir = request.form['project-dir']
             commits_after_tag = request.form['commits-after-tag']
-            if 'submodule-commits' in request.args:
+            submodule_commits = request.form['submodule-commits']
+            if not submodule_commits.isspace():
                 submodule_file = request.files['submodule']
-                submodule_commits = request.form['submodule-commits']
             git_branch = request.form['git-branch']
 
             component_version = f"{component_version}-{git_branch}-{commit_id}" if int(
