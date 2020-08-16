@@ -57,6 +57,7 @@
                     <li class="tablinks"><a href="./sa-dashboard"><i class="fa fa-dashboard"></i> Dashboard</a></li>
                     <li class="tablinks"><a href="./sa-ehistoric"><i class="fa fa-history"></i> History</a></li>
                     <li class="tablinks active" onclick="executeDataTable()"><a href="./sa-dmetrics"><i class="fa fa-flask"></i> Metrics</a></li>
+                    <li class="tablinks"><a href="./sa-compare"><i class="fa fa-history"></i> Compare</a></li>
                 </ul>
             </div>
         </div>
@@ -67,20 +68,19 @@
             <h3 class="my-0 mr-md-auto font-weight-normal" style="text-transform: capitalize;">{{db_name}} - Recent Metrics</h3>
         </div>
         <hr>
-        <table class="table table-striped" id="tmetrics">
+        <table class="table table-striped" id="dmetrics">
             <thead>
                 <tr>
                     <th>EID</th>
                     <th>Defect Category</th>
                     <th>Defect Check</th>
                     <th>Defect Priority</th>
-                    <th>File Path</th>
+                    <th>Defect Link</th>
                     <th>Function</th>
                     <th>Begin Line</th>
                     <th>End Line</th>
                     <th>Column</th>
                     <th>Comment</th>
-                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -90,7 +90,7 @@
                         <td> {{item[2]}}</td>
                         <td> {{item[3]}}</td>
                         <td> {{item[4]}}</td>
-                        <td> {{item[5]}}</td>
+                        <td> <a href="{{item[11]}}" target="_blank" >Link</a></td>
                         <td> {{item[6]}}</td>
                         <td> {{item[7]}}</td>
                         <td> {{item[8]}}</td>
@@ -132,8 +132,8 @@
     </div>
     <script>
         function executeDataTable() {
-            var fileTitle = "TestMetrics";
-            $('#tmetrics').DataTable(
+            var fileTitle = "DefectMetrics";
+            $('#dmetrics').DataTable(
                 {
                     retrieve: true,
                     "order": [[ 2, "asc" ]],
