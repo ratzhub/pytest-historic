@@ -605,8 +605,7 @@ def sa_compare(db):
         eid_two = request.form['eid_two']
         cursor = mysql.connection.cursor()
         use_db(cursor, db)
-        cursor.execute(f"SELECT Defect_Category, Defect_Check, Defect_Priority, Defect_Function, Defect_Link FROM "
-                       f"SA_DEFECT WHERE Execution_Id={eid_one} AND Defect_Fingerprint NOT IN "
+        cursor.execute(f"SELECT * FROM SA_DEFECT WHERE Execution_Id={eid_one} AND Defect_Fingerprint NOT IN "
                        f"(SELECT Defect_Fingerprint FROM  SA_DEFECT WHERE Execution_Id={eid_two});")
         data = cursor.fetchall()
         print(data)
