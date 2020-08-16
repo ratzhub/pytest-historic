@@ -133,55 +133,23 @@
         <hr>
         <table class="table table-striped" id="search">
             <thead>
-				<tr>
-					<th rowspan="2" style="text-align:center">Test Case</th>
-					<th colspan="3" style="text-align:center" title="Click to view {{fb}} execution info"><a href="./tmetrics/{{fb}}" target="_blank">EID {{fb}}</a></th>
-					<th colspan="3" style="text-align:center" title="Click to view {{sb}} execution info"><a href="./tmetrics/{{sb}}" target="_blank">EID {{sb}}</a></th>
-				</tr>
                 <tr>
-                    <th>Status</th>
-                    <th>Time (s)</th>
-                    <th>Error</th>
-                    <th>Status</th>
-                    <th>Time (s)</th>
-                    <th>Error</th>
+                    <th>Defect Category</th>
+                    <th>Defect Check</th>
+                    <th>Defect Priority</th>
+                    <th>Defect Function</th>
+                    <th>Defect Link</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in data %}
                 <tr>
-                    <td style="text-align:left;word-wrap: break-word;max-width: 250px; white-space: normal;"> {{item[1]}}</td>
-
-                    {% if item[2] %}
-                        {% if (item[2] == "PASS") %}
-                            <td style="color: green;"> {{item[2]}}</td>
-                        {% elif (item[2] == "FAIL") %}
-                            <td style="color: red;"> {{item[2]}}</td>
-                        {% else %}
-                            <td style="color: brown;"> {{item[2]}}</td>
-                        {% endif %}
-                    {% else %}
-                        <td style="color: rgba(240, 188, 18, 0.664)">N/A</td>
-                    {% endif %}
-
-                    <td style="text-align:left;"> {{item[3]}}</td>
-                    <td style="text-align:left;word-wrap: break-word;max-width: 250px; white-space: normal;"> {{item[4]}}</td>
-
-                    {% if item[5] %}
-                        {% if (item[5] == "PASS") %}
-                            <td style="color: green;"> {{item[5]}}</td>
-                        {% elif (item[5] == "FAIL") %}
-                            <td style="color: red;"> {{item[5]}}</td>
-                        {% else %}
-                            <td style="color: brown;"> {{item[5]}}</td>
-                        {% endif %}
-                    {% else %}
-                        <td style="color: rgba(240, 188, 18, 0.664)">N/A</td>
-                    {% endif %}
-
-                    <td style="text-align:left;"> {{item[6]}}</td>
-                    <td style="text-align:left;word-wrap: break-word;max-width: 250px; white-space: normal;"> {{item[7]}}</td>
-                </tr>
+                        <td> {{item[2]}}</td>
+                        <td> {{item[3]}}</td>
+                        <td> {{item[4]}}</td>
+                        <td> {{item[6]}}</td>
+                        <td> <a href="{{item[11]}}">Link</a></td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>

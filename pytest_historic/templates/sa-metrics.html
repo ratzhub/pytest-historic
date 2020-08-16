@@ -114,6 +114,8 @@
         <div class="tabcontent" id="dashboard">
             <div class="d-flex flex-column flex-md-row align-items-center p-1 mb-3 bg-light border-bottom shadow-sm rowcard">
                 <h5 class="my-0 mr-md-auto font-weight-normal"> <b style="color:black;">Component Version:</b> {{exe_data[0][2]}} </h5>
+                <h5 class="my-0 mr-md-auto font-weight-normal"> <b style="color:black;">Pipeline Link:</b> <a href="{{exe_data[0][4]}}">Link</a> </h5>
+                <h5 class="my-0 mr-md-auto font-weight-normal"> <b style="color:black;">Artifact Link:</b> <a href="{{exe_data[0][5]}}">Link</a> </h5>
                 <nav class="my-2 my-md-0 mr-md-3" style="color:red">
                     <a class="p-2"><b style="color:black;">Build Version:</b> {{exe_data[0][3]}} </a>
                 </nav>
@@ -226,6 +228,14 @@
         </div>
 
         <div class="tabcontent" id="defectMetrics">
+            <div class="d-flex flex-column flex-md-row align-items-center p-1 mb-3 bg-light border-bottom shadow-sm rowcard">
+                <h5 class="my-0 mr-md-auto font-weight-normal"> <b style="color:black;">Component Version:</b> {{exe_data[0][2]}} </h5>
+                <h5 class="my-0 mr-md-auto font-weight-normal"> <b style="color:black;">Pipeline Link:</b> <a href="{{exe_data[0][4]}}">Link</a> </h5>
+                <h5 class="my-0 mr-md-auto font-weight-normal"> <b style="color:black;">Artifact Link:</b> <a href="{{exe_data[0][5]}}">Link</a> </h5>
+                <nav class="my-2 my-md-0 mr-md-3" style="color:red">
+                    <a class="p-2"><b style="color:black;">Build Version:</b> {{exe_data[0][3]}} </a>
+                </nav>
+            </div>
             <h4><b><i class="fa fa-table"></i> Defect Metrics</b></h4>
             <hr />
             <table class="table row-border tablecard" id="dm">
@@ -234,8 +244,8 @@
                     <th>Defect Category</th>
                     <th>Defect Check</th>
                     <th>Defect Priority</th>
-                    <th>File Link</th>
                     <th>Function</th>
+                    <th>File Link</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -244,8 +254,8 @@
                         <td> {{item[2]}}</td>
                         <td> {{item[3]}}</td>
                         <td> {{item[4]}}</td>
-                        <td> <a href="{{item[11]}}" target="_blank" >Link</a></td>
                         <td> {{item[6]}}</td>
+                        <td> <a href="{{item[11]}}" target="_blank" >Link</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>

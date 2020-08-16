@@ -67,18 +67,17 @@
                     <th>Defect Check</th>
                     <th>Defect Priority</th>
                     <th>Defect Function</th>
-                    <th>Defect_Link</th>
-                    <th></th>
+                    <th>Defect Link</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in data %}
                     <tr>
-                        <td> {{item[1]}}</td>
                         <td> {{item[2]}}</td>
                         <td> {{item[3]}}</td>
                         <td> {{item[4]}}</td>
-                        <td> <a href="{{item[5]}}">Link</a></td>
+                        <td> {{item[6]}}</td>
+                        <td> <a href="{{item[11]}}">Link</a></td>
                     </tr>
                 {% endfor %}
             </tbody>

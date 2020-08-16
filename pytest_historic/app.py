@@ -610,7 +610,7 @@ def sa_compare(db):
                        f"(SELECT Defect_Fingerprint FROM  SA_DEFECT WHERE Execution_Id={eid_two});")
         data = cursor.fetchall()
         print(data)
-        return render_template('sa-difference.html', data=data, db_name=db)
+        return render_template('sa-compare.html', data=data, db_name=db)
     else:
         return render_template('sa-compare.html', db_name=db)
 
@@ -622,9 +622,6 @@ def sa_difference(db):
         eid_two = request.form['eid_two']
         cursor = mysql.connection.cursor()
         use_db(cursor, db)
-        # fetch first eid defect results
-        # cursor.execute(
-        #     "SELECT Execution_Id, Test_Name, Test_Status, Test_Time, Test_Error from TB_TEST WHERE Execution_Id=%s;" % eid_one)
         cursor.execute("SELECT * from SA_DEFECT WHERE Execution_Id=%s;" % eid_one)
         first_data = cursor.fetchall()
         # fetch second eid defect results
