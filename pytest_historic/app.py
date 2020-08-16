@@ -690,11 +690,6 @@ def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submod
     return defect_count
 
 
-"""
-curl -X POST "http://10.240.0.87:5000/static" -H  "accept: application/json" -H  "Content-Type: multipart/form-data" -F "file=@/home/rateesh/static_analysis/bcm_app.txt;type=text/plain" -F "artifact-link=http://google.com" -F "pipeline-link=http://facebook.com" -F "tool=polyspace" -F "component=bcmapp" -F "component-version=1.6.3"
-"""
-
-
 @app.route('/static', methods=['POST'])
 def static_report():
     print(request.form)
@@ -743,21 +738,24 @@ def static_report():
             if prev_eid:
                 prev_eid = prev_eid[0]
                 cursor.execute(
-                    f"SELECT SUM(Priority_High + Priority_Low + Priority_Medium), Component_Version FROM SA_EXECUTION WHERE Execution_Id = {prev_eid};")
+                    f"SELECT SUM(Priority_High + Priority_Low + Priority_Medium), Component_Version, Git_Commit FROM SA_EXECUTION WHERE Execution_Id = {prev_eid};")
                 temp = cursor.fetchone()
                 prev_count = temp[0]
                 prev_version = temp[1]
+                prev_commit = temp[2]
+
                 if defect_count > prev_count:
 
                     return {
-                        "FAIL": f"Previous build {prev_version.split('-')[0]} (Commit-{prev_version.split('-')[-1]}) - {prev_count}; "
-                                f"Current build {component_version.split('-')[0]} (Commit-{component_version.split('-')[2]}) - {defect_count}"}
+                        "FAIL": f"Previous build {prev_version.split('-')[0]} (Commit-{prev_commit}) - {prev_count}; "
+                                f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count}"}
                 else:
                     return {
-                        "PASS": f"Previous build {prev_version.split('-')[0]} (Commit-{prev_version.split('-')[-1]}) - {prev_count}; "
-                                f"Current build {component_version.split('-')[0]} (Commit-{component_version.split('-')[2]}) - {defect_count}"}
+                        "PASS": f"Previous build {prev_version.split('-')[0]} (Commit-{prev_commit}) - {prev_count}; "
+                                f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count}"}
             else:
-                return {"PASS": f"Defects added to db - {defect_count} (No previous records for branch - {component_version.split('-')[1]}"}
+                return {
+                    "PASS": f"Defects added to db - {defect_count} (No previous records for branch - {component_version.split('-')[1]}"}
 
     except Exception as e:
         print(traceback.format_exc())
