@@ -712,8 +712,11 @@ def static_report():
                 submodule_file = request.files['submodule']
             git_branch = request.form['git-branch']
 
-            component_version = f"{component_version}-{git_branch}-{commit_id}" if int(
-                commits_after_tag) > 0 else component_version
+            if not component_version.isspace() and component_version:
+                component_version = f"{component_version}-{git_branch}-{commit_id}" if int(
+                    commits_after_tag) > 0 else component_version
+            else:
+                component_version = "NA"
 
             tool = request.form['tool']
             cursor = mysql.connection.cursor()
