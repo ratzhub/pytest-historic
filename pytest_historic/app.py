@@ -641,7 +641,7 @@ def sa_difference(db):
 def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
     defect_count = 0
     config = configparser.ConfigParser()
-    if not submodule_commits.isspace():
+    if not submodule_commits.isspace() and submodule_commits:
         filename = secure_filename(submodule_file.filename)
         unique_filename = str(uuid.uuid4())
         filename += f"_{unique_filename}"
@@ -713,7 +713,7 @@ def static_report():
             project_dir = request.form['project-dir']
             commits_after_tag = request.form['commits-after-tag']
             submodule_commits = request.form['submodule-commits']
-            if not submodule_commits.isspace():
+            if not submodule_commits.isspace() and submodule_commits:
                 submodule_file = request.files['submodule']
             git_branch = request.form['git-branch']
 
