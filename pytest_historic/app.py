@@ -5,6 +5,7 @@ import os
 import traceback
 import uuid
 from os import unlink
+import socket
 
 import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for
@@ -600,38 +601,29 @@ def compare(db):
 
 @app.route('/<db>/sa-compare', methods=['GET', 'POST'])
 def sa_compare(db):
-    if request.method == "POST":
-        eid_one = request.form['eid_one']
-        eid_two = request.form['eid_two']
+    if request.method == "POST" or ('eid_one' in request.args and 'eid_two' in request.args):
+        eid_one = request.form['eid_one'] if 'eid_one' in request.form else request.args['eid_one']
+        eid_two = request.form['eid_two'] if 'eid_two' in request.form else request.args['eid_two']
         cursor = mysql.connection.cursor()
         use_db(cursor, db)
-        cursor.execute(f"SELECT * FROM SA_DEFECT WHERE Execution_Id={eid_one} AND Defect_Fingerprint NOT IN "
-                       f"(SELECT Defect_Fingerprint FROM  SA_DEFECT WHERE Execution_Id={eid_two});")
-        data = cursor.fetchall()
-        print(data)
-        return render_template('sa-compare.html', data=data, db_name=db)
+        result, data = compare_defects(eid_one, eid_two, cursor)
+        cursor.execute(f"SELECT Component_Version from SA_EXECUTION WHERE Execution_Id={eid_one}")
+        first_comp = (cursor.fetchone()[0], eid_one)
+        cursor.execute(f"SELECT Component_Version from SA_EXECUTION WHERE Execution_Id={eid_two}")
+        sec_comp = (cursor.fetchone()[0], eid_two)
+        return render_template('sa-compare.html', data=data, db_name=db, first_comp=first_comp, sec_comp=sec_comp)
     else:
         return render_template('sa-compare.html', db_name=db)
 
 
-@app.route('/<db>/sa-difference', methods=['GET', 'POST'])
-def sa_difference(db):
-    if request.method == "POST":
-        eid_one = request.form['eid_one']
-        eid_two = request.form['eid_two']
-        cursor = mysql.connection.cursor()
-        use_db(cursor, db)
-        cursor.execute("SELECT * from SA_DEFECT WHERE Execution_Id=%s;" % eid_one)
-        first_data = cursor.fetchall()
-        # fetch second eid defect results
-        cursor.execute("SELECT * from SA_DEFECT WHERE Execution_Id=%s;" % eid_two)
-        second_data = cursor.fetchall()
-        # combine both tuples
-        data = first_data + second_data
-        sorted_data = sort_tests(data)
-        return render_template('sa-compare.html', data=sorted_data, db_name=db, fb=eid_one, sb=eid_two)
+def compare_defects(eid_one, eid_two, cursor):
+    cursor.execute(f"SELECT * FROM SA_DEFECT WHERE Execution_Id={eid_one} AND Defect_Fingerprint NOT IN "
+                   f"(SELECT Defect_Fingerprint FROM  SA_DEFECT WHERE Execution_Id={eid_two});")
+    data = cursor.fetchall()
+    if data:
+        return False, data
     else:
-        return render_template('sa-compare.html', db_name=db)
+        return True, data
 
 
 def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
@@ -734,27 +726,39 @@ def static_report():
             cursor.execute(
                 f'SELECT Execution_Id FROM SA_EXECUTION WHERE Git_Branch="{git_branch}" AND  Git_Commit<>"{commit_id}" ORDER BY Execution_Id DESC LIMIT 1;')
             prev_eid = cursor.fetchone()
+
+            # Get IP address
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip_addr = s.getsockname()[0]
+            s.close()
+
             if prev_eid:
                 prev_eid = prev_eid[0]
                 cursor.execute(
                     f"SELECT SUM(Priority_High + Priority_Low + Priority_Medium), Component_Version, Git_Commit FROM SA_EXECUTION WHERE Execution_Id = {prev_eid};")
                 temp = cursor.fetchone()
+                result, data = compare_defects(eid, prev_eid, cursor)
                 prev_count = temp[0]
                 prev_version = temp[1]
                 prev_commit = temp[2]
 
-                if defect_count > prev_count:
+                if not result:
 
                     return {
-                        "FAIL": f"Previous build {prev_version.split('-')[0]} (Commit-{prev_commit}) - {prev_count}; "
-                                f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count}"}
+                        "FAIL": f"New defects found - http://{ip_addr}:5000{url_for('sa_compare', db=component, eid_one=eid, eid_two=prev_eid)} \n"
+                                f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count}; "
+                                f"Previous build {prev_version.split('-')[0]} (Commit-{prev_commit}) - {prev_count}"}
                 else:
                     return {
-                        "PASS": f"Previous build {prev_version.split('-')[0]} (Commit-{prev_commit}) - {prev_count}; "
-                                f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count}"}
+                        "PASS": f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count}"
+                                f"Previous build {prev_version.split('-')[0]} (Commit-{prev_commit}) - {prev_count}\n"
+                                f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
             else:
                 return {
-                    "PASS": f"Defects added to db - {defect_count} (No previous records for branch - {component_version.split('-')[1]}"}
+                    "PASS": f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count} "
+                            f"(No previous records for {git_branch} branch)\n"
+                            f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
 
     except Exception as e:
         print(traceback.format_exc())

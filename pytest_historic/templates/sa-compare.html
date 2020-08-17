@@ -2,13 +2,13 @@
 <html lang="en">
 
 <head>
-    <link href="https://img.icons8.com/cotton/64/000000/time-machine.png" rel="shortcut icon" type="image/x-icon" />
+    <link href="https://img.icons8.com/cotton/64/000000/time-machine.png" rel="shortcut icon" type="image/x-icon"/>
     <title>Chitragupta - Compare Executions</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
-    <link href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css" rel="stylesheet" />
-    <link href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css" rel="stylesheet" />
+    <link href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css" rel="stylesheet"/>
+    <link href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css" rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
@@ -84,77 +84,90 @@
             td {
                 text-align: center;
             }
+
     </style>
 
 </head>
 
 <body>
-    <script>
+<script>
         window.onload = function () {
             executeDataTable();
         };
-    </script>
 
-    <nav class="navbar navbar-inverse navbar-fixed-top">
-        <div class="container-fluid">
-            <div class="navbar-header">
-                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                </button>
-                <a class="navbar-brand" href="/home">Chitragupta</a>
-            </div>
-            <div class="collapse navbar-collapse" id="myNavbar">
-                <ul class="nav navbar-nav">
-                    <li class="tablinks"><a href="./sa-dashboard"><i class="fa fa-dashboard"></i> Dashboard</a></li>
-                    <li class="tablinks"><a href="./sa-ehistoric"><i class="fa fa-history"></i> History</a></li>
-                    <li class="tablinks"><a href="./sa-dmetrics"><i class="fa fa-flask"></i> Metrics</a></li>
-                    <li class="tablinks active" onclick="executeDataTable()"><a href="./sa-compare"><i
-                                class="fa fa-sliders"></i> Compare</a></li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+</script>
 
-    <div class="tabcontent">
-        <div class="d-flex flex-column flex-md-row align-items-center p-1 mb-3 bg-light border-bottom shadow-sm">
-            <h3 class="my-0 mr-md-auto font-weight-normal" style="text-transform: capitalize;">{{db_name}} - Compare
-                Executions</h3>
+<nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/home">Chitragupta</a>
         </div>
-        <hr>
-        <form class="form-inline" method="post" action="">
-            <label for="id1">Execution ID:</label>
-            <input type="text" id="eid_one" placeholder="Enter EID" name="eid_one" onkeypress='validate(event)'>
-            <label for="id2">Execution ID:</label>
-            <input type="text" id="eid_two" placeholder="Enter EID" name="eid_two" onkeypress='validate(event)'>
-            <button id="submit" type="submit" disabled="disabled">Submit</button>
-        </form>
-        <hr>
-        <table class="table table-striped" id="search">
-            <thead>
-                <tr>
-                    <th>Defect Category</th>
-                    <th>Defect Check</th>
-                    <th>Defect Priority</th>
-                    <th>Defect Function</th>
-                    <th>Defect Link</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in data %}
-                <tr>
-                        <td> {{item[2]}}</td>
-                        <td> {{item[3]}}</td>
-                        <td> {{item[4]}}</td>
-                        <td> {{item[6]}}</td>
-                        <td> <a href="{{item[11]}}">Link</a></td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="collapse navbar-collapse" id="myNavbar">
+            <ul class="nav navbar-nav">
+                <li class="tablinks"><a href="./sa-dashboard"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+                <li class="tablinks"><a href="./sa-ehistoric"><i class="fa fa-history"></i> History</a></li>
+                <li class="tablinks"><a href="./sa-dmetrics"><i class="fa fa-flask"></i> Metrics</a></li>
+                <li class="tablinks active" onclick="executeDataTable()"><a href="./sa-compare"><i
+                        class="fa fa-sliders"></i> Compare</a></li>
+            </ul>
+        </div>
     </div>
-    <script>
+</nav>
+
+<div class="tabcontent">
+    <div class="d-flex flex-column flex-md-row align-items-center p-1 mb-3 bg-light border-bottom shadow-sm">
+        <h3 class="my-0 mr-md-auto font-weight-normal" style="text-transform: capitalize;">{{db_name}} - Compare
+            Executions</h3>
+    </div>
+    <hr>
+    <form class="form-inline" method="post" action="">
+        <label for="eid_one">First Execution ID:</label>
+        <input type="text" id="eid_one" placeholder="Enter EID" name="eid_one" onkeypress='validate(event)'>
+        <label for="eid_two">Second Execution ID:</label>
+        <input type="text" id="eid_two" placeholder="Enter EID" name="eid_two" onkeypress='validate(event)'>
+        <button id="submit" type="submit" disabled="disabled">Submit</button>
+    </form>
+    <hr>
+    <table class="table table-striped" id="search">
+        <thead>
+        <tr>
+            {% if first_comp and sec_comp %}
+            <th colspan="5" style="text-align:center" title="Defect Metrics"> Extra defects in <a
+                    href="/{{db_name}}/sa-metrics/{{first_comp[1]}}">{{first_comp[0]}}</a> compared to <a
+                    href="/{{db_name}}/sa-metrics/{{sec_comp[1]}}">{{sec_comp[0]}}</a></th>
+            {% else %}
+            <th colspan="5" style="text-align:center" title="Defect Metrics"> Extra defects in First Execution ID
+                compared to Second Execution ID
+            </th>
+            {% endif %}
+        </tr>
+        <tr>
+            <th>Defect Category</th>
+            <th>Defect Check</th>
+            <th>Defect Priority</th>
+            <th>Defect Function</th>
+            <th>Defect Link</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in data %}
+        <tr>
+            <td> {{item[2]}}</td>
+            <td> {{item[3]}}</td>
+            <td> {{item[4]}}</td>
+            <td> {{item[6]}}</td>
+            <td><a href="{{item[11]}}">Link</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<script>
         function executeDataTable() {
             var fileTitle = "Search";
             $('#search').DataTable(
@@ -218,8 +231,9 @@
                 }
             );
         }
-    </script>
-    <script>
+
+</script>
+<script>
         var submitButton = document.getElementById("submit");
         var textField = document.getElementById("eid_one");
         var textField_two = document.getElementById("eid_two");
@@ -231,8 +245,9 @@
                 submitButton.disabled = false;
             }
         }
-    </script>
-    <script>
+
+</script>
+<script>
         function validate(evt) {
             var theEvent = evt || window.event;
 
@@ -250,7 +265,8 @@
                 if(theEvent.preventDefault) theEvent.preventDefault();
             }
         }
-    </script>
+
+</script>
 </body>
 
 </html>
