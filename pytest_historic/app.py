@@ -2,14 +2,17 @@ import configparser
 import json
 import logging
 import os
+import socket
+import threading
 import traceback
 import uuid
+from json import dumps
 from os import unlink
-import socket
 
 import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for
 from flask_mysqldb import MySQL
+from httplib2 import Http
 from werkzeug.utils import secure_filename
 
 from .args import parse_options
@@ -214,7 +217,7 @@ def sa_edit_db(db_name):
             print(str(e))
 
         finally:
-            return redirect(url_for('sa-home'))
+            return redirect(url_for('sa_home'))
     else:
         return render_template('sa-editdb.html', db_name=db_name)
 
@@ -488,7 +491,7 @@ def sa_metrics(db, eid):
     graph_data = json.dumps(graph_data)
     return render_template('sa-metrics.html', test_data=test_data,
                            project_image=project_image[0][0], exe_data=exe_data,
-                           graph_data=graph_data)
+                           graph_data=graph_data, db=db)
 
 
 @app.route('/<db>/tmetrics/<eid>', methods=['GET', 'POST'])
@@ -727,11 +730,9 @@ def static_report():
                 f'SELECT Execution_Id FROM SA_EXECUTION WHERE Git_Branch="{git_branch}" AND  Git_Commit<>"{commit_id}" ORDER BY Execution_Id DESC LIMIT 1;')
             prev_eid = cursor.fetchone()
 
-            # Get IP address
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            ip_addr = s.getsockname()[0]
-            s.close()
+            ip_addr = get_ip()
+
+            webhook = get_webhook(cursor, component)
 
             if prev_eid:
                 prev_eid = prev_eid[0]
@@ -745,24 +746,76 @@ def static_report():
 
                 if not result:
 
-                    return {
-                        "FAIL": f"New defects found - http://{ip_addr}:5000{url_for('sa_compare', db=component, eid_one=eid, eid_two=prev_eid)} \n"
-                                f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count}; "
-                                f"Previous build {prev_version.split('-')[0]} (Commit-{prev_commit}) - {prev_count}"}
+                    response = {
+                        "Result": "FAIL",
+                        "Details": f"New defects found - http://{ip_addr}:5000{url_for('sa_compare', db=component, eid_one=eid, eid_two=prev_eid)} \n "
+                                   f"Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
+                                   f"Previous build: {prev_version.split('-')[0]} (Commit-{prev_commit}) - Defects: {prev_count}"}
                 else:
-                    return {
-                        "PASS": f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count}"
-                                f"Previous build {prev_version.split('-')[0]} (Commit-{prev_commit}) - {prev_count}\n"
-                                f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
+                    response = {
+                        "Result": "PASS",
+                        "Details": f"Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
+                                   f"Previous build: {prev_version.split('-')[0]} (Commit-{prev_commit}) - Defects: {prev_count} \n "
+                                   f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
             else:
-                return {
-                    "PASS": f"Current build {component_version.split('-')[0]} (Commit-{commit_id}) - {defect_count} "
-                            f"(No previous records for {git_branch} branch)\n"
-                            f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
+                response = {
+                    "Result": "PASS",
+                    "Details": f"Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
+                               f"(No previous records for {git_branch} branch) \n "
+                               f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
+            if webhook:
+                t = threading.Thread(target=post_webhook, args=(response, webhook))
+                try:
+                    t.start()
+                except Exception as e:
+                    print(traceback.format_exc())
+                    return {"Exception": traceback.format_exc()}
+            return response
 
     except Exception as e:
         print(traceback.format_exc())
         return {"Exception": traceback.format_exc()}
+
+
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
+
+def post_webhook(response, webhook_url):
+    """Hangouts Chat incoming webhook quickstart."""
+    url = webhook_url
+    msg = f'Static Code Analysis\n{response["Details"]}\nResult: {response["Result"]}'
+    bot_message = {
+        'text': msg}
+
+    message_headers = {'Content-Type': 'application/json; charset=UTF-8'}
+
+    http_obj = Http()
+
+    response = http_obj.request(
+        uri=url,
+        method='POST',
+        headers=message_headers,
+        body=dumps(bot_message),
+    )
+
+    print(response)
+
+
+def get_webhook(cursor, db):
+    sql = "SELECT Project_Webhook FROM pytesthistoric.SA_PROJECT WHERE Project_Name = %s;"
+    val = (db,)
+    cursor.execute(sql, val)
+    webhook_url = cursor.fetchone()[0]
+    return webhook_url
 
 
 def use_db(cursor, db_name):
