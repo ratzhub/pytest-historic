@@ -25,7 +25,8 @@ setup(
           'config',
           'flask',
           'flask-mysqldb',
-          'pandas'
+          'pandas',
+          'httplib2'
       ],
       entry_points={
           'console_scripts': [
