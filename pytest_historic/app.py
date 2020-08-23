@@ -904,6 +904,7 @@ def build_version():
                     cursor.execute(cmd)
                 else:
                     print(f"Commit {commit} not found for {comp} component")
+            mysql.connection.commit()
             return {"Dummy": "Dummy"}
     except Exception as e:
         print(traceback.format_exc())
