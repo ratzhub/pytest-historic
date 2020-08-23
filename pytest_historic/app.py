@@ -885,10 +885,24 @@ def get_webhook(cursor, db):
 def build_version():
     print(request.form)
     print(request.files)
+    cursor = mysql.connection.cursor()
     try:
         if request.method == 'POST':
-            comp_versions = request.files['comp_version.txt']
-            build = request.form['build']
+            comp_versions = request.files['comp-version']
+            build_version = request.form['build-version']
+            comp_versions = json.load(comp_versions)
+            print(comp_versions)
+            for comp in comp_versions:
+                commit = comp_versions[comp]["commit"]
+                use_db(cursor, comp)
+                cursor.execute(f"SELECT Execution_Id from SA_EXECUTION WHERE Git_Commit='{commit}' order by Execution_Id desc LIMIT 1;")
+                eid = cursor.fetchone()
+                if eid:
+                    cursor.execute(
+                        f"UPDATE SA_EXECUTION SET Build_Version = '{build_version}' WHERE Execution_Id = {eid};")
+                else:
+                    print(f"Commit {commit} not found for {comp} component")
+            return {"Dummy": "Dummy"}
     except Exception as e:
         print(traceback.format_exc())
         return {"Exception": traceback.format_exc()}
