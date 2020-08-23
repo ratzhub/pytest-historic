@@ -899,6 +899,7 @@ def build_version():
                 eid = cursor.fetchone()
                 if eid:
                     cmd = f"UPDATE SA_EXECUTION SET Build_Version = '{build_version}' WHERE Execution_Id = {eid};"
+                    print(cmd)
                     cursor.execute(cmd)
                 else:
                     print(f"Commit {commit} not found for {comp} component")
