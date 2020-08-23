@@ -633,6 +633,7 @@ def compare_defects(eid_one, eid_two, cursor):
 def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
     defect_count = 0
     config = configparser.ConfigParser()
+    temp_count = {"high": [],  "low": [],  "medium": []}
     if not submodule_commits.isspace() and submodule_commits:
         filename = secure_filename(submodule_file.filename)
         unique_filename = str(uuid.uuid4())
@@ -647,7 +648,6 @@ def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, sub
                 if config[section]["path"] == path:
                     config[section]["commit"] = line.split()[0][:8]
                     break
-    # print({section: dict(config[section]) for section in config.sections()})
     if tool == "polyspace":
         df = pd.read_csv(report_file, sep='\t', header=[0])
         for i in range(df.shape[0]):
@@ -664,10 +664,7 @@ def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, sub
                 f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function, Defect_Link, Defect_Fingerprint)"
                 f" VALUES ({eid}, '{df['Group'][i]}', '{df['Check'][i]}', '{df['Information'][i].replace('Impact: ', '')}','{df['File'][i]}', '{df['Function'][i]}', '{defect_link}',  '{df['Key'][i]}');")
             defect_count += 1
-        # Update priority counts:
-        temp_count = {"high": [],
-                      "low": [],
-                      "medium": []}
+        # Update priority counts
         for priority in temp_count:
             cursor.execute(
                 f"SELECT COUNT(Defect_Id) FROM SA_DEFECT WHERE Defect_Priority = '{priority}'  AND  Execution_id = {eid};")
@@ -679,7 +676,8 @@ def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, sub
         for issue in root.findall('issue'):
             defect_link = str()
             for location in issue.findall('location'):
-                file_path = location.get('file').replace(f"{project_dir}/", '')
+                actual_file_path = location.get('file')
+                file_path = actual_file_path.replace(f"{project_dir}/", '')
                 defect_line = location.get('line')
                 defect_column = location.get('defect_column')
             for section in config.sections():
@@ -694,21 +692,49 @@ def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, sub
             summary = issue.get("summary").replace("'", "`")
             message = issue.get('message').replace("'", "`")
             cmd = f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function, Defect_Link, Defect_Fingerprint, Defect_Begin_Line, Defect_Column, Defect_Severity, Defect_Message, Defect_Summary)" \
-                  f" VALUES ({eid}, '{issue.get('category')}', '{issue.get('id')}', '{issue.get('priority')}','{file_path}', 'NA', '{defect_link}',  '{id}-{file_path}-{defect_line}-{defect_column}', '{defect_line}', '{defect_column}', '{issue.get('severity')}', '{message}', '{summary}');"
-            print(cmd)
+                  f" VALUES ({eid}, '{issue.get('category')}', '{issue.get('id')}', '{issue.get('priority')}','{actual_file_path}', 'NA', '{defect_link}',  '{id}-{file_path}-{defect_line}-{defect_column}', '{defect_line}', '{defect_column}', '{issue.get('severity')}', '{message}', '{summary}');"
+            #print(cmd)
             cursor.execute(cmd)
             defect_count += 1
-
-        # Update priority counts:
-        temp_count = {"high": [],
-                      "low": [],
-                      "medium": []}
+        # Update priority counts
         priority_distribution = {"low": (1, 3), "medium": (4, 7), "high": (8, 10)}
         for priority in temp_count:
             cursor.execute(
                 f"SELECT COUNT(Defect_Id) FROM SA_DEFECT WHERE  Defect_Priority BETWEEN {priority_distribution[priority][0]} AND {priority_distribution[priority][1]} AND  Execution_id = {eid};")
             count = cursor.fetchall()
             temp_count[priority] = count[0][0]
+
+    elif tool == "code-quality":
+        defects = json.load(report_file)
+        for defect in defects:
+            defect_link = str()
+            file_path = defect['location']['path']
+            defect_line_start = defect['location']['lines']['begin']
+            defect_line_end = defect['location']['lines']['end']
+            defect_description = defect.get('description').replace("'", "`")
+            for section in config.sections():
+                if file_path.startswith(config[section]["path"]):
+                    defect_link = f"{commit_url.split('-')[0]}/{config[section]['url'].replace('.git', '')}/-/blob/{config[section]['commit']}{file_path.replace(config[section]['path'], '')} "
+                    # print(defect_link)
+                    break
+            if not defect_link:
+                defect_link = f"{commit_url}/{file_path}"
+            if defect_line_start:
+                defect_link += f"#L{defect_line_start}"
+            cmd = f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_File_Path, Defect_Link, Defect_Fingerprint, Defect_Begin_Line, Defect_End_Line, Defect_Severity, Defect_Message)" \
+                  f" VALUES ({eid}, '{defect['categories'][0]}', '{defect['check_name']}','{file_path}', '{defect_link}', '{defect['fingerprint']}', '{defect_line_start}', '{defect_line_end}', '{defect['severity']}', '{defect_description}');"
+            print(cmd)
+            cursor.execute(cmd)
+            defect_count += 1
+        # Update priority counts
+        priority_distribution = {"low": "('minor')", "medium": "('major')", "high": "('critical')"}
+        for priority in temp_count:
+            cmd = f"SELECT COUNT(Defect_Id) FROM SA_DEFECT WHERE  Defect_Severity IN {priority_distribution[priority]} AND Execution_id = {eid};"
+            print(cmd)
+            cursor.execute(cmd)
+            count = cursor.fetchall()
+            temp_count[priority] = count[0][0]
+
     command = f"UPDATE SA_EXECUTION SET Priority_High = {temp_count['high']}, Priority_Low = {temp_count['low']}, " \
               f"Priority_Medium = {temp_count['medium']} WHERE Execution_Id = {eid};"
     print(command)
@@ -783,21 +809,21 @@ def static_report():
 
                     response = {
                         "Result": "FAIL",
-                        "Details": f"Branch: {git_branch} \n New defects found - http://{ip_addr}:5000{url_for('sa_compare', db=component, eid_one=eid, eid_two=prev_eid)} \n "
+                        "Details": f"Component: {component} \n Branch: {git_branch} \n New defects found - http://{ip_addr}:5000{url_for('sa_compare', db=component, eid_one=eid, eid_two=prev_eid)} \n "
                                    f"Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
                                    f"Previous build: {prev_version.split('-')[0]} (Commit-{prev_commit}) - Defects: {prev_count} \n "
                                    f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
                 else:
                     response = {
                         "Result": "PASS",
-                        "Details": f"Branch: {git_branch} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
+                        "Details": f"Component: {component} \n Branch: {git_branch} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
                                    f"Previous build: {prev_version.split('-')[0]} (Commit-{prev_commit}) - Defects: {prev_count} \n "
                                    f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
 
             else:
                 response = {
                     "Result": "PASS",
-                    "Details": f"Branch: {git_branch} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
+                    "Details": f"Component: {component} \n Branch: {git_branch} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
                                f"(No previous records for {git_branch} branch) \n "
                                f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
             if webhook:
@@ -829,7 +855,7 @@ def get_ip():
 def post_webhook(response, webhook_url):
     """Hangouts Chat incoming webhook quickstart."""
     url = webhook_url
-    msg = f'Static Code Analysis\n{response["Details"]}\nResult: {response["Result"]}'
+    msg = f'{response["Details"]}\nResult: {response["Result"]}'
     bot_message = {
         'text': msg}
 
