@@ -680,8 +680,8 @@ def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, sub
             defect_link = str()
             for location in issue.findall('location'):
                 file_path = location.get('file').replace(f"{project_dir}/", '')
-                line_no = location.get('line')
-                column = location.get('column')
+                defect_line = location.get('line')
+                defect_column = location.get('defect_column')
             for section in config.sections():
                 if file_path.startswith(config[section]["path"]):
                     defect_link = f"{commit_url.split('-')[0]}/{config[section]['url'].replace('.git', '')}/-/blob/{config[section]['commit']}{file_path.replace(config[section]['path'], '')} "
@@ -689,12 +689,12 @@ def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, sub
                     break
             if not defect_link:
                 defect_link = f"{commit_url}{location.get('file').replace(project_dir, '')}"
-            if line_no:
-                defect_link += f"#L{line_no}"
+            if defect_line:
+                defect_link += f"#L{defect_line}"
             summary = issue.get("summary").replace("'", "`")
             message = issue.get('message').replace("'", "`")
             cmd = f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function, Defect_Link, Defect_Fingerprint, Defect_Begin_Line, Defect_Column, Defect_Severity, Defect_Message, Defect_Summary)" \
-                  f" VALUES ({eid}, '{issue.get('category')}', '{issue.get('id')}', '{issue.get('priority')}','{file_path}', 'NA', '{defect_link}',  '{id}-{file_path}-{line}-{column}', '{line_no}', '{column}', '{issue.get('severity')}', '{message}', '{summary}');"
+                  f" VALUES ({eid}, '{issue.get('category')}', '{issue.get('id')}', '{issue.get('priority')}','{file_path}', 'NA', '{defect_link}',  '{id}-{file_path}-{defect_line}-{defect_column}', '{defect_line}', '{defect_column}', '{issue.get('severity')}', '{message}', '{summary}');"
             print(cmd)
             cursor.execute(cmd)
             defect_count += 1
