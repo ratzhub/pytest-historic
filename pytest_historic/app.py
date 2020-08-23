@@ -6,6 +6,7 @@ import socket
 import threading
 import traceback
 import uuid
+import xml.etree.ElementTree as ET
 from json import dumps
 from os import unlink
 
@@ -147,7 +148,7 @@ def sa_add_db():
             cursor.execute(
                 "Create table SA_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Component_Version TEXT, Build_Version TEXT, Pipeline_Link TEXT, Artifact_Link TEXT, Priority_High INT, Priority_Low INT, Priority_Medium INT, Git_Commit TEXT, Git_Url TEXT, Project_Dir TEXT, Commits_After_Tag INT, Git_Branch TEXT);")
             cursor.execute(
-                "Create table SA_DEFECT ( Defect_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Defect_Category TEXT, Defect_Check TEXT, Defect_Priority TEXT, Defect_File_Path TEXT, Defect_Function TEXT, Defect_Begin_Line INT, Defect_End_Line INT, Defect_Column INT, Defect_Comment TEXT, Defect_Link TEXT, Defect_Fingerprint TEXT);")
+                "Create table SA_DEFECT ( Defect_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Defect_Category TEXT, Defect_Check TEXT, Defect_Priority TEXT, Defect_File_Path TEXT, Defect_Function TEXT, Defect_Begin_Line TEXT, Defect_End_Line TEXT, Defect_Column TEXT, Defect_Comment TEXT, Defect_Link TEXT, Defect_Fingerprint TEXT, Defect_Severity TEXT, Defect_Message TEXT, Defect_Summary TEXT, Defect_Explanation TEXT);")
             mysql.connection.commit()
         except Exception as e:
             print(traceback.format_exc())
@@ -629,7 +630,7 @@ def compare_defects(eid_one, eid_two, cursor):
         return True, data
 
 
-def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
+def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
     defect_count = 0
     config = configparser.ConfigParser()
     if not submodule_commits.isspace() and submodule_commits:
@@ -648,9 +649,7 @@ def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submod
                     break
     # print({section: dict(config[section]) for section in config.sections()})
     if tool == "polyspace":
-        # csv_reader = csv.reader(codecs.iterdecode(csv_file, 'utf-8'), delimiter='\t')
-        # next(csv_reader) # Skipping header row
-        df = pd.read_csv(csv_file, sep='\t', header=[0])
+        df = pd.read_csv(report_file, sep='\t', header=[0])
         for i in range(df.shape[0]):
             defect_link = str()
             file_path = df['File'][i].replace(f"{project_dir}/", '')
@@ -665,15 +664,51 @@ def parse_sa_report(csv_file, tool, cursor, eid, commit_url, project_dir, submod
                 f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function, Defect_Link, Defect_Fingerprint)"
                 f" VALUES ({eid}, '{df['Group'][i]}', '{df['Check'][i]}', '{df['Information'][i].replace('Impact: ', '')}','{df['File'][i]}', '{df['Function'][i]}', '{defect_link}',  '{df['Key'][i]}');")
             defect_count += 1
-    # Update priority counts:
-    temp_count = {"high": [],
-                  "low": [],
-                  "medium": []}
-    for priority in temp_count:
-        cursor.execute(
-            f"SELECT COUNT(Defect_Id) FROM SA_DEFECT WHERE Defect_Priority = '{priority}' AND  Execution_id = {eid};")
-        count = cursor.fetchall()
-        temp_count[priority] = count[0][0]
+        # Update priority counts:
+        temp_count = {"high": [],
+                      "low": [],
+                      "medium": []}
+        for priority in temp_count:
+            cursor.execute(
+                f"SELECT COUNT(Defect_Id) FROM SA_DEFECT WHERE Defect_Priority = '{priority}'  AND  Execution_id = {eid};")
+            count = cursor.fetchall()
+            temp_count[priority] = count[0][0]
+
+    elif tool == "android-lint":
+        root = ET.parse(report_file).getroot()
+        for issue in root.findall('issue'):
+            defect_link = str()
+            for location in issue.findall('location'):
+                file_path = location.get('file').replace(f"{project_dir}/", '')
+                line_no = location.get('line')
+                column = location.get('column')
+            for section in config.sections():
+                if file_path.startswith(config[section]["path"]):
+                    defect_link = f"{commit_url.split('-')[0]}/{config[section]['url'].replace('.git', '')}/-/blob/{config[section]['commit']}{file_path.replace(config[section]['path'], '')} "
+                    # print(defect_link)
+                    break
+            if not defect_link:
+                defect_link = f"{commit_url}{location.get('file').replace(project_dir, '')}"
+            if line_no:
+                defect_link += f"#L{line_no}"
+            summary = issue.get("summary").replace("'", "`")
+            message = issue.get('message').replace("'", "`")
+            cmd = f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function, Defect_Link, Defect_Fingerprint, Defect_Begin_Line, Defect_Column, Defect_Severity, Defect_Message, Defect_Summary)" \
+                  f" VALUES ({eid}, '{issue.get('category')}', '{issue.get('id')}', '{issue.get('priority')}','{file_path}', 'NA', '{defect_link}',  '{id}-{file_path}-{line}-{column}', '{line_no}', '{column}', '{issue.get('severity')}', '{message}', '{summary}');"
+            print(cmd)
+            cursor.execute(cmd)
+            defect_count += 1
+
+        # Update priority counts:
+        temp_count = {"high": [],
+                      "low": [],
+                      "medium": []}
+        priority_distribution = {"low": (1, 3), "medium": (4, 7), "high": (8, 10)}
+        for priority in temp_count:
+            cursor.execute(
+                f"SELECT COUNT(Defect_Id) FROM SA_DEFECT WHERE  Defect_Priority BETWEEN {priority_distribution[priority][0]} AND {priority_distribution[priority][1]} AND  Execution_id = {eid};")
+            count = cursor.fetchall()
+            temp_count[priority] = count[0][0]
     command = f"UPDATE SA_EXECUTION SET Priority_High = {temp_count['high']}, Priority_Low = {temp_count['low']}, " \
               f"Priority_Medium = {temp_count['medium']} WHERE Execution_Id = {eid};"
     print(command)
@@ -748,19 +783,21 @@ def static_report():
 
                     response = {
                         "Result": "FAIL",
-                        "Details": f"New defects found - http://{ip_addr}:5000{url_for('sa_compare', db=component, eid_one=eid, eid_two=prev_eid)} \n "
+                        "Details": f"Branch: {git_branch} \n New defects found - http://{ip_addr}:5000{url_for('sa_compare', db=component, eid_one=eid, eid_two=prev_eid)} \n "
                                    f"Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
-                                   f"Previous build: {prev_version.split('-')[0]} (Commit-{prev_commit}) - Defects: {prev_count}"}
+                                   f"Previous build: {prev_version.split('-')[0]} (Commit-{prev_commit}) - Defects: {prev_count} \n "
+                                   f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
                 else:
                     response = {
                         "Result": "PASS",
-                        "Details": f"Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
+                        "Details": f"Branch: {git_branch} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
                                    f"Previous build: {prev_version.split('-')[0]} (Commit-{prev_commit}) - Defects: {prev_count} \n "
                                    f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
+
             else:
                 response = {
                     "Result": "PASS",
-                    "Details": f"Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
+                    "Details": f"Branch: {git_branch} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
                                f"(No previous records for {git_branch} branch) \n "
                                f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
             if webhook:
@@ -816,6 +853,19 @@ def get_webhook(cursor, db):
     cursor.execute(sql, val)
     webhook_url = cursor.fetchone()[0]
     return webhook_url
+
+
+@app.route('/build-version', methods=['POST'])
+def build_version():
+    print(request.form)
+    print(request.files)
+    try:
+        if request.method == 'POST':
+            comp_versions = request.files['comp_version.txt']
+            build = request.form['build']
+    except Exception as e:
+        print(traceback.format_exc())
+        return {"Exception": traceback.format_exc()}
 
 
 def use_db(cursor, db_name):
