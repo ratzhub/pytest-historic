@@ -898,6 +898,7 @@ def build_version():
                 cursor.execute(f"SELECT Execution_Id from SA_EXECUTION WHERE Git_Commit='{commit}' order by Execution_Id desc LIMIT 1;")
                 eid = cursor.fetchone()
                 if eid:
+                    eid = eid[0]
                     cmd = f"UPDATE SA_EXECUTION SET Build_Version = '{build_version}' WHERE Execution_Id = {eid};"
                     print(cmd)
                     cursor.execute(cmd)
