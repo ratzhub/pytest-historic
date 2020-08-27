@@ -146,7 +146,7 @@ def sa_add_db():
             use_db(cursor, db_name)
             print("static_analysis")
             cursor.execute(
-                "Create table SA_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Component_Version TEXT, Build_Version TEXT, Pipeline_Link TEXT, Artifact_Link TEXT, Priority_High INT, Priority_Low INT, Priority_Medium INT, Git_Commit TEXT, Git_Url TEXT, Project_Dir TEXT, Commits_After_Tag INT, Git_Branch TEXT);")
+                "Create table SA_EXECUTION ( Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Component_Version TEXT, Build_Version TEXT, Pipeline_Link TEXT, Artifact_Link TEXT, Priority_High INT, Priority_Low INT, Priority_Medium INT, Git_Commit TEXT, Git_Url TEXT, Project_Dir TEXT, Commits_After_Tag INT, Git_Branch TEXT, Compilation_Error TEXT, Git_Commit_Message TEXT);")
             cursor.execute(
                 "Create table SA_DEFECT ( Defect_Id INT NOT NULL auto_increment primary key, Execution_Id INT, Defect_Category TEXT, Defect_Check TEXT, Defect_Priority TEXT, Defect_File_Path TEXT, Defect_Function TEXT, Defect_Begin_Line TEXT, Defect_End_Line TEXT, Defect_Column TEXT, Defect_Comment TEXT, Defect_Link TEXT, Defect_Fingerprint TEXT, Defect_Severity TEXT, Defect_Message TEXT, Defect_Summary TEXT, Defect_Explanation TEXT);")
             mysql.connection.commit()
@@ -747,6 +747,7 @@ def static_report():
     print(request.form)
     print(request.files)
     submodule_file, submodule_commits = None, None
+    compilation_error, commit_msg = 0, None
     try:
         if request.method == 'POST':
             file = request.files['file']
@@ -763,6 +764,10 @@ def static_report():
             if not submodule_commits.isspace() and submodule_commits:
                 submodule_file = request.files['submodule']
             git_branch = request.form['git-branch']
+            if 'compilation-error' in request.form:
+                compilation_error = request.form['compilation-error']
+            if 'commit-msg' in request.form:
+                commit_msg = request.form['commit-msg']
 
             if not component_version.isspace() and component_version:
                 component_version = f"{component_version}-{git_branch}-{commit_id}" if int(
@@ -773,8 +778,8 @@ def static_report():
             tool = request.form['tool']
             cursor = mysql.connection.cursor()
             use_db(cursor, component)
-            cmd = f"INSERT INTO SA_EXECUTION (Execution_Date, Component_Version, Pipeline_Link, Artifact_Link, Build_Version, Git_Commit, Git_Url, Project_Dir, Commits_After_Tag, Git_Branch) " \
-                  f"VALUES (NOW(), '{component_version}', '{pipeline_link}', '{artifact_link}', '{build_version}', '{commit_id}', '{repo_link}', '{project_dir}', {int(commits_after_tag)}, '{git_branch}');"
+            cmd = f"INSERT INTO SA_EXECUTION (Execution_Date, Component_Version, Pipeline_Link, Artifact_Link, Build_Version, Git_Commit, Git_Url, Project_Dir, Commits_After_Tag, Git_Branch, Compilation_Error, Git_Commit_Message) " \
+                  f"VALUES (NOW(), '{component_version}', '{pipeline_link}', '{artifact_link}', '{build_version}', '{commit_id}', '{repo_link}', '{project_dir}', {int(commits_after_tag)}, '{git_branch}', '{compilation_error}', '{commit_msg}');"
             cursor.execute(cmd)
             commit_url = f"{repo_link}/-/blob/{commit_id}"
             mysql.connection.commit()
@@ -809,21 +814,21 @@ def static_report():
 
                     response = {
                         "Result": "FAIL",
-                        "Details": f"Component: {component} \n Branch: {git_branch} \n New defects found - http://{ip_addr}:5000{url_for('sa_compare', db=component, eid_one=eid, eid_two=prev_eid)} \n "
+                        "Details": f"Component: {component} \n Branch: {git_branch} \n Commit message: {commit_msg} \n No. of files failed to compile: {compilation_error} \n New defects found - http://{ip_addr}:5000{url_for('sa_compare', db=component, eid_one=eid, eid_two=prev_eid)} \n "
                                    f"Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
                                    f"Previous build: {prev_version.split('-')[0]} (Commit-{prev_commit}) - Defects: {prev_count} \n "
                                    f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
                 else:
                     response = {
                         "Result": "PASS",
-                        "Details": f"Component: {component} \n Branch: {git_branch} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
+                        "Details": f"Component: {component} \n Branch: {git_branch} \n Commit message: {commit_msg} \n No. of files failed to compile:  {compilation_error} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
                                    f"Previous build: {prev_version.split('-')[0]} (Commit-{prev_commit}) - Defects: {prev_count} \n "
                                    f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
 
             else:
                 response = {
                     "Result": "PASS",
-                    "Details": f"Component: {component} \n Branch: {git_branch} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
+                    "Details": f"Component: {component} \n Branch: {git_branch} \n Commit message: {commit_msg} \n No. of files failed to compile:  {compilation_error} \n Current build: {component_version.split('-')[0]} (Commit-{commit_id}) - Defects: {defect_count} \n "
                                f"(No previous records for {git_branch} branch) \n "
                                f"Dashboard Link: http://{ip_addr}:5000{url_for('sa_metrics', db=component, eid=eid)}"}
             if webhook:
