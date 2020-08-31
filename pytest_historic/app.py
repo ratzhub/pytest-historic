@@ -633,7 +633,7 @@ def compare_defects(eid_one, eid_two, cursor):
 def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, submodule_file, submodule_commits):
     defect_count = 0
     config = configparser.ConfigParser()
-    temp_count = {"high": [],  "low": [],  "medium": []}
+    temp_count = {"high": [], "low": [], "medium": []}
     if not submodule_commits.isspace() and submodule_commits:
         filename = secure_filename(submodule_file.filename)
         unique_filename = str(uuid.uuid4())
@@ -693,7 +693,7 @@ def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, sub
             message = issue.get('message').replace("'", "`")
             cmd = f"INSERT INTO SA_DEFECT (Execution_Id, Defect_Category, Defect_Check, Defect_Priority, Defect_File_Path, Defect_Function, Defect_Link, Defect_Fingerprint, Defect_Begin_Line, Defect_Column, Defect_Severity, Defect_Message, Defect_Summary)" \
                   f" VALUES ({eid}, '{issue.get('category')}', '{issue.get('id')}', '{issue.get('priority')}','{actual_file_path}', 'NA', '{defect_link}',  '{id}-{file_path}-{defect_line}-{defect_column}', '{defect_line}', '{defect_column}', '{issue.get('severity')}', '{message}', '{summary}');"
-            #print(cmd)
+            # print(cmd)
             cursor.execute(cmd)
             defect_count += 1
         # Update priority counts
@@ -886,7 +886,7 @@ def get_webhook(cursor, db):
     return webhook_url
 
 
-@app.route('/build-version', methods=['POST'])
+@app.route('/build-version', methods=['POST', 'GET'])
 def build_version():
     print(request.form)
     print(request.files)
@@ -897,8 +897,14 @@ def build_version():
             build_version = request.form['build-version']
             comp_versions = json.load(comp_versions)
             print(comp_versions)
+            use_db(cursor, "pytesthistoric")
+            cursor.execute(
+                f"INSERT INTO BUILD_INFO (Build_Version, Execution_Date) VALUES ('{build_version}', NOW());")
+            mysql.connection.commit()
             for comp in comp_versions:
+                use_db(cursor, "pytesthistoric")
                 commit = comp_versions[comp]["commit"]
+                cursor.execute(f"UPDATE BUILD_INFO SET {comp}  = '{commit}' WHERE Build_Version = '{build_version}'")
                 use_db(cursor, comp)
                 cursor.execute(f"SELECT Execution_Id from SA_EXECUTION WHERE Git_Commit='{commit}' order by Execution_Id desc LIMIT 1;")
                 eid = cursor.fetchone()
@@ -911,6 +917,37 @@ def build_version():
                     print(f"Commit {commit} not found for {comp} component")
             mysql.connection.commit()
             return {"Dummy": "Dummy"}
+        elif request.method == 'GET':
+            use_db(cursor, "pytesthistoric")
+            cursor.execute("SELECT * FROM BUILD_INFO;")
+            data = cursor.fetchall()
+            cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'BUILD_INFO'")
+            comps = cursor.fetchall()
+            print(f'comps: {comps}')
+            master_data = list()
+            for commit in data:
+                defect_counts = list()
+                defect_counts.extend(commit[:3])
+                for i in range(3, len(commit)):
+                    try:
+                        print(f"comp: {comps[i][0]}")
+                        use_db(cursor, comps[i][0])
+                        cursor.execute(
+                            f"SELECT Execution_Id, (Priority_High + Priority_Medium + Priority_Low) as Total_Defects, Component_Version from SA_EXECUTION WHERE Git_Commit='{commit[i]}' order by Execution_Id desc LIMIT 1;")
+                        eid = cursor.fetchone()
+                        if eid:
+                            comp_string = f"{eid[1]} ({eid[2]})"
+                            print(f"Append {comp_string}")
+                            defect_counts.append(comp_string)
+
+                        else:
+                            print(f"Append NA")
+                            defect_counts.append("NA")
+                    except:
+                        print(traceback.print_exc())
+                        defect_counts.append("DB NA")
+                master_data.append(defect_counts)
+            return render_template('build-info.html', data=master_data)
     except Exception as e:
         print(traceback.format_exc())
         return {"Exception": traceback.format_exc()}
