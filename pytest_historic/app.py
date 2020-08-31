@@ -936,7 +936,7 @@ def build_version():
                         eid = cursor.fetchone()
                         if eid:
                             comp_string = f"{eid[1]} ({eid[2]})"
-                            comp_link = f"http://{ip_addr}:5000{url_for('sa_metrics', db=comps[i][0], eid=eid)}"
+                            comp_link = f"http://{ip_addr}:5000{url_for('sa_metrics', db=comps[i][0], eid=eid[0])}"
                             defect_counts.append([comp_string, comp_link])
                         else:
                             defect_counts.append("NA")
