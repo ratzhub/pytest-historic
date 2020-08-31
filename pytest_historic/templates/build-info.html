@@ -82,24 +82,15 @@
                 </tr>
             </thead>
             <tbody>
-                {% for item in data %}
+                {% for items in data %}
                     <tr>
-                        <td> {{item[2]}}</td>
-                        <td> {{item[1]}}</td>
-                        <td> {{item[3]}}</td>
-                        <td> {{item[4]}}</td>
-                        <td> {{item[5]}}</td>
-                        <td> {{item[6]}}</td>
-                        <td> {{item[7]}}</td>
-                        <td> {{item[8]}}</td>
-                        <td> {{item[9]}}</td>
-                        <td> {{item[10]}}</td>
-                        <td> {{item[11]}}</td>
-                        <td> {{item[12]}}</td>
-                        <td> {{item[13]}}</td>
-                        <td> {{item[14]}}</td>
-                        <td> {{item[15]}}</td>
-                        <td> {{item[16]}}</td>
+                        {% for item in items[1:] %}
+                            {% if item is sequence and item is not string %}
+                                <td><a href="{{item[1]}}"> {{item[0]}} </a></td>
+                            {% else %}
+                                <td>{{item}}</td>
+                            {% endif %}
+                        {% endfor %}
                     </tr>
                 {% endfor %}
             </tbody>

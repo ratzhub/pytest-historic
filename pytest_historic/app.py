@@ -891,6 +891,7 @@ def build_version():
     print(request.form)
     print(request.files)
     cursor = mysql.connection.cursor()
+    ip_addr = get_ip()
     try:
         if request.method == 'POST':
             comp_versions = request.files['comp-version']
@@ -923,25 +924,21 @@ def build_version():
             data = cursor.fetchall()
             cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'BUILD_INFO' ORDER BY ordinal_position")
             comps = cursor.fetchall()
-            print(f'comps: {comps}')
             master_data = list()
             for commit in data:
                 defect_counts = list()
                 defect_counts.extend(commit[:3])
                 for i in range(3, len(commit)):
                     try:
-                        print(f"comp: {comps[i][0]}")
                         use_db(cursor, comps[i][0])
                         cursor.execute(
                             f"SELECT Execution_Id, (Priority_High + Priority_Medium + Priority_Low) as Total_Defects, Component_Version from SA_EXECUTION WHERE Git_Commit='{commit[i]}' order by Execution_Id desc LIMIT 1;")
                         eid = cursor.fetchone()
                         if eid:
                             comp_string = f"{eid[1]} ({eid[2]})"
-                            print(f"Append {comp_string}")
-                            defect_counts.append(comp_string)
-
+                            comp_link = f"http://{ip_addr}:5000{url_for('sa_metrics', db=comps[i][0], eid=eid)}"
+                            defect_counts.append([comp_string, comp_link])
                         else:
-                            print(f"Append NA")
                             defect_counts.append("NA")
                     except:
                         print(traceback.print_exc())
