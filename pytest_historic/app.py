@@ -907,7 +907,9 @@ def build_version():
                 commit = comp_versions[comp]["commit"]
                 cursor.execute(f"UPDATE BUILD_INFO SET {comp}  = '{commit}' WHERE Build_Version = '{build_version}'")
                 use_db(cursor, comp)
-                cursor.execute(f"SELECT Execution_Id from SA_EXECUTION WHERE Git_Commit LIKE '{commit}%' order by Execution_Id desc LIMIT 1;")
+                cmd = f"SELECT Execution_Id from SA_EXECUTION WHERE Git_Commit LIKE '{commit}%' order by Execution_Id desc LIMIT 1;"
+                print(cmd)
+                cursor.execute(cmd)
                 eid = cursor.fetchone()
                 if eid:
                     eid = eid[0]
@@ -922,7 +924,8 @@ def build_version():
             use_db(cursor, "pytesthistoric")
             cursor.execute("SELECT * FROM BUILD_INFO;")
             data = cursor.fetchall()
-            cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'BUILD_INFO' ORDER BY ordinal_position")
+            cursor.execute(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'BUILD_INFO' ORDER BY ordinal_position")
             comps = cursor.fetchall()
             master_data = list()
             for commit in data:
