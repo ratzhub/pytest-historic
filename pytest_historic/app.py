@@ -935,7 +935,7 @@ def build_version():
                     try:
                         use_db(cursor, comps[i][0])
                         cursor.execute(
-                            f"SELECT Execution_Id, (Priority_High + Priority_Medium + Priority_Low) as Total_Defects, Component_Version from SA_EXECUTION WHERE Git_Commit='{commit[i]}' order by Execution_Id desc LIMIT 1;")
+                            f"SELECT Execution_Id, (Priority_High + Priority_Medium + Priority_Low) as Total_Defects, Component_Version from SA_EXECUTION WHERE Git_Commit LIKE '{commit[i]}%' order by Execution_Id desc LIMIT 1;")
                         eid = cursor.fetchone()
                         if eid:
                             comp_string = f"{eid[1]} ({eid[2]})"
