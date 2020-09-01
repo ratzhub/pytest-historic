@@ -907,7 +907,7 @@ def build_version():
                 commit = comp_versions[comp]["commit"]
                 cursor.execute(f"UPDATE BUILD_INFO SET {comp}  = '{commit}' WHERE Build_Version = '{build_version}'")
                 use_db(cursor, comp)
-                cursor.execute(f"SELECT Execution_Id from SA_EXECUTION WHERE Git_Commit='{commit}' order by Execution_Id desc LIMIT 1;")
+                cursor.execute(f"SELECT Execution_Id from SA_EXECUTION WHERE Git_Commit LIKE '{commit}%' order by Execution_Id desc LIMIT 1;")
                 eid = cursor.fetchone()
                 if eid:
                     eid = eid[0]
