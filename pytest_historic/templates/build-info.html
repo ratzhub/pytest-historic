@@ -79,6 +79,7 @@
                     <th>GTW SBL</th>
                     <th>Vehicle Core</th>
                     <th>Shuriken</th>
+                    <th>Delete</th>
                 </tr>
             </thead>
             <tbody>
@@ -91,8 +92,10 @@
                                 <td>{{item}}</td>
                             {% endif %}
                         {% endfor %}
+                    <td><a href="/deletebuild/{{items[0]}}">Delete</a></td>
                     </tr>
                 {% endfor %}
+
             </tbody>
         </table>
     </div>
@@ -102,7 +105,7 @@
             $('#eidtmetrics').DataTable(
                 {
                     retrieve: true,
-                    "order": [[ 1, "asc" ]],
+                    "order": [[ 0, "asc" ]],
                     dom: 'l<".margin" B>frtip',
 
                     "aoColumnDefs": [ {

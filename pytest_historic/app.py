@@ -351,11 +351,25 @@ def sa_ehistoric(db):
 def delete_eid_conf(db, eid):
     return render_template('deleconf.html', db_name=db, eid=eid)
 
+@app.route('/deletebuild/<bid>', methods=['GET'])
+def delete_build(bid):
+    return render_template('deletebuild.html', bid=bid)
+
 
 @app.route('/<db>/sa-deleconf/<eid>', methods=['GET'])
 def sa_delete_eid_conf(db, eid):
     return render_template('sa-deleconf.html', db_name=db, eid=eid)
 
+
+@app.route('/bdelete/<bid>', methods=['GET'])
+def delete_bid(bid):
+    db = "pytesthistoric"
+    cursor = mysql.connection.cursor()
+    use_db(cursor, db)
+    # remove build from table
+    cursor.execute("DELETE FROM BUILD_INFO WHERE Build_Id='%s';" % bid)
+    mysql.connection.commit()
+    return redirect(url_for('build_version', db=db))
 
 @app.route('/<db>/edelete/<eid>', methods=['GET'])
 def delete_eid(db, eid):
@@ -938,7 +952,7 @@ def build_version():
                             f"SELECT Execution_Id, (Priority_High + Priority_Medium + Priority_Low) as Total_Defects, Component_Version from SA_EXECUTION WHERE Git_Commit LIKE '{commit[i]}%' order by Execution_Id desc LIMIT 1;")
                         eid = cursor.fetchone()
                         if eid:
-                            comp_string = f"{eid[1]} ({eid[2]})"
+                            comp_string = f"{eid[1]}"
                             comp_link = f"http://{ip_addr}:5000{url_for('sa_metrics', db=comps[i][0], eid=eid[0])}"
                             defect_counts.append([comp_string, comp_link])
                         else:
