@@ -792,7 +792,8 @@ def static_report():
             tool = request.form['tool']
             cursor = mysql.connection.cursor()
             use_db(cursor, component)
-            commit_msg = commit_msg.replace("'", "`")
+            if commit_msg:
+                commit_msg = commit_msg.replace("'", "`")
             cmd = f"INSERT INTO SA_EXECUTION (Execution_Date, Component_Version, Pipeline_Link, Artifact_Link, Build_Version, Git_Commit, Git_Url, Project_Dir, Commits_After_Tag, Git_Branch, Compilation_Error, Git_Commit_Message) " \
                   f"VALUES (NOW(), '{component_version}', '{pipeline_link}', '{artifact_link}', '{build_version}', '{commit_id}', '{repo_link}', '{project_dir}', {int(commits_after_tag)}, '{git_branch}', '{compilation_error}', '{commit_msg}');"
             cursor.execute(cmd)
@@ -990,4 +991,4 @@ def main():
     app.config['MYSQL_PASSWORD'] = args.password
     app.config['auth_plugin'] = 'mysql_native_password'
 
-    app.run(host=args.apphost)
+    app.run(host=args.apphost, debug=True, use_reloader=False)
