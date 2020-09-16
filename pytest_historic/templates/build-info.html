@@ -83,7 +83,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for items in data %}
+                {% for items in data if not ("nightly" in items[2]|lower or "nb" in items[2]|lower or "test" in items[2]|lower) %}
                     <tr>
                         {% for item in items[1:] %}
                             {% if item is sequence and item is not string %}
