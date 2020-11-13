@@ -2,6 +2,7 @@ import configparser
 import json
 import logging
 import os
+import re
 import socket
 import threading
 import traceback
@@ -55,6 +56,15 @@ def automation_home():
     return render_template('automation-home.html', data=data)
 
 
+@app.route('/fcs-home', methods=['GET'])
+def fcs_home():
+    cursor = mysql.connection.cursor()
+    use_db(cursor, "pytesthistoric")
+    cursor.execute("select * from FCS_PROJECT;")
+    data = cursor.fetchall()
+    return render_template('fcs-home.html', data=data)
+
+
 @app.route('/sa-home', methods=['GET'])
 def sa_home():
     cursor = mysql.connection.cursor()
@@ -74,6 +84,11 @@ def sa_delete_db_conf(db):
     return render_template('sa-deldbconf.html', db_name=db)
 
 
+@app.route('/<db>/fcs-deldbconf', methods=['GET'])
+def fcs_delete_db_conf(db):
+    return render_template('fcs-deldbconf.html', db_name=db)
+
+
 @app.route('/<db>/delete', methods=['GET'])
 def delete_db(db):
     cursor = mysql.connection.cursor()
@@ -82,6 +97,15 @@ def delete_db(db):
     cursor.execute("DELETE FROM pytesthistoric.TB_PROJECT WHERE Project_Name='%s';" % db)
     mysql.connection.commit()
     return redirect(url_for('home'))
+
+
+@app.route('/<db>/fcs-delete', methods=['GET'])
+def fcs_delete_db(db):
+    cursor = mysql.connection.cursor()
+    cursor.execute("DROP DATABASE %s;" % db)
+    cursor.execute("DELETE FROM pytesthistoric.FCS_PROJECT WHERE Project_Name='%s';" % db)
+    mysql.connection.commit()
+    return redirect(url_for('fcs_home'))
 
 
 @app.route('/<db>/sa-delete', methods=['GET'])
@@ -125,6 +149,36 @@ def add_db():
             return redirect(url_for('home'))
     else:
         return render_template('newdb.html')
+
+
+@app.route('/fcs-newdb', methods=['GET', 'POST'])
+def fcs_add_db():
+    if request.method == "POST":
+        db_name = request.form['dbname']
+        db_desc = request.form['dbdesc']
+        db_image = request.form['dbimage']
+        db_webhook = request.form['dbwebhook']
+        cursor = mysql.connection.cursor()
+        try:
+            # create new database for project
+            cursor.execute("Create DATABASE %s;" % db_name)
+            # update created database info in pytesthistoric.SA_PROJECT table
+            cursor.execute(
+                "INSERT INTO pytesthistoric.FCS_PROJECT ( Project_Id, Project_Name, Project_Desc, Project_Image, Created_Date, Last_Updated, Total_Commits, Project_Webhook) VALUES (0, '%s', '%s', '%s', NOW(), NOW(), 0, '%s');" % (
+                    db_name, db_desc, db_image, db_webhook))
+            # create tables in created database
+            use_db(cursor, db_name)
+            cursor.execute("Create table CODE_SIZE (Execution_Id INT NOT NULL auto_increment primary key, Execution_Date DATETIME, Component_Version TEXT, Commit_Id TEXT, "
+                           "Parent_Commit_Id TEXT, Commit_Message TEXT, Commit_Date TEXT, Flash_Max  INT, Flash_Current INT, "
+                           "Flex_Nvm_Max INT, Flex_Nvm_Current INT, Sram_Max INT, Sram_Current INT, Flex_Ram_Max INT, Flex_Ram_Current INT);")
+            mysql.connection.commit()
+        except Exception as e:
+            print(traceback.format_exc())
+
+        finally:
+            return redirect(url_for('fcs_home'))
+    else:
+        return render_template('fcs-newdb.html')
 
 
 @app.route('/sa-newdb', methods=['GET', 'POST'])
@@ -189,6 +243,38 @@ def edit_db(db_name):
             return redirect(url_for('home'))
     else:
         return render_template('editdb.html', db_name=db_name)
+
+
+@app.route('/<db_name>/fcs-editdb', methods=['GET', 'POST'])
+def fcs_edit_db(db_name):
+    if request.method == "POST":
+        db_desc = request.form['dbdesc']
+        db_image = request.form['dbimage']
+        db_webhook = request.form['dbwebhook']
+        cursor = mysql.connection.cursor()
+
+        try:
+            # update created database info in pytesthistoric.TB_PROJECT table
+            if db_desc:
+                cursor.execute(
+                    "UPDATE pytesthistoric.FCS_PROJECT SET Project_Desc = '%s' WHERE Project_Name = '%s';" % (
+                        db_desc, db_name))
+            if db_image:
+                cursor.execute(
+                    "UPDATE pytesthistoric.FCS_PROJECT SET Project_Image ='%s' WHERE Project_Name = '%s';" % (
+                        db_image, db_name))
+            if db_webhook:
+                cursor.execute(
+                    "UPDATE pytesthistoric.FCS_PROJECT SET Project_Webhook='%s' WHERE Project_Name = '%s';" % (
+                        db_webhook, db_name))
+            mysql.connection.commit()
+        except Exception as e:
+            print(str(e))
+
+        finally:
+            return redirect(url_for('fcs_home'))
+    else:
+        return render_template('fcs-editdb.html', db_name=db_name)
 
 
 @app.route('/<db_name>/sa-editdb', methods=['GET', 'POST'])
@@ -277,6 +363,26 @@ def dashboard(db):
         return redirect(url_for('redirect_url'))
 
 
+@app.route('/<db>/fcs-dashboard', methods=['GET'])
+def fcs_dashboard(db):
+    cursor = mysql.connection.cursor()
+    use_db(cursor, db)
+
+    cursor.execute("SELECT COUNT(Execution_Id) from CODE_SIZE;")
+    results_data = cursor.fetchall()
+
+    if results_data[0][0] > 0:
+
+        cursor.execute(
+            "SELECT Component_Version, Commit_Id, Commit_Date, Flash_Max, Flash_Current, Sram_Max, Sram_Current from CODE_SIZE order by Execution_Id desc LIMIT 10;")
+        code_size_data = cursor.fetchall()
+
+        return render_template('fcs-dashboard.html', code_size_data=code_size_data, db_name=db)
+
+    else:
+        return redirect(url_for('redirect_url'))
+
+
 @app.route('/<db>/sa-dashboard', methods=['GET'])
 def sa_dashboard(db):
     cursor = mysql.connection.cursor()
@@ -351,6 +457,7 @@ def sa_ehistoric(db):
 def delete_eid_conf(db, eid):
     return render_template('deleconf.html', db_name=db, eid=eid)
 
+
 @app.route('/deletebuild/<bid>', methods=['GET'])
 def delete_build(bid):
     return render_template('deletebuild.html', bid=bid)
@@ -370,6 +477,7 @@ def delete_bid(bid):
     cursor.execute("DELETE FROM BUILD_INFO WHERE Build_Id='%s';" % bid)
     mysql.connection.commit()
     return redirect(url_for('build_version', db=db))
+
 
 @app.route('/<db>/edelete/<eid>', methods=['GET'])
 def delete_eid(db, eid):
@@ -754,6 +862,48 @@ def parse_sa_report(report_file, tool, cursor, eid, commit_url, project_dir, sub
     print(command)
     cursor.execute(command)
     return defect_count
+
+
+@app.route('/codesize', methods=['POST'])
+def code_size():
+    print(request.form)
+    print(request.files)
+    try:
+        if request.method == 'POST':
+            content = request.files['file'].read().decode('utf-8')
+            component = request.form['component']
+            component += 'fcs'
+            component_version = request.form['component-version']
+            commit_id = request.form['commit-id']
+            parent_commit_id = request.form['parent-commit-id']
+            #commit_msg = request.form['commit-msg']
+            commit_date = request.form['commit-date']
+            cursor = mysql.connection.cursor()
+            use_db(cursor, component)
+            if 'gtwapp' in component:
+                flash_max = 227072
+                flex_nvm_max = 256000
+                sram_max = 64000
+                flex_ram_max = 8000
+                print(content, type(content))
+                content = re.sub('[^[\S\n\t]{3,}', '\t', content).split('\n')
+                #print(content)
+                flash_current = content[0].split('\t')[2].replace(' B', '')
+                flex_nvm_current = content[1].split('\t')[2].replace(' GB', '')
+                sram_current = content[2].split('\t')[2].replace(' B', '')
+                flex_ram_current = content[3].split('\t')[2].replace(' B', '')
+                #print(flash_current, sram_current, flex_ram_current, flex_nvm_current)
+                cmd = f"INSERT INTO CODE_SIZE (Execution_Date, Component_Version, Commit_Id, Parent_Commit_Id, Commit_Date, Flash_Max, Flash_Current, " \
+                      f"Flex_Nvm_Max, Flex_Nvm_Current, Sram_Max, Sram_Current, Flex_Ram_Max, Flex_Ram_Current) " \
+                      f"VALUES (NOW(), '{component_version}', '{commit_id}', '{parent_commit_id}', '{commit_date}', '{flash_max}', '{flash_current}', " \
+                      f"{flex_nvm_max}, '{flex_nvm_current}', '{sram_max}', '{sram_current}', '{flex_ram_max}', '{flex_ram_current}');"
+                print(cmd)
+                cursor.execute(cmd)
+                mysql.connection.commit()
+        return "Success"
+    except Exception as e:
+        print(traceback.format_exc())
+        return {"Exception": traceback.format_exc()}
 
 
 @app.route('/static', methods=['POST'])

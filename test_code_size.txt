@@ -1,0 +1,4 @@
+   PROGRAM_FLASH:       67304 B     227072 B     29.64%
+        FLEX_NVM:          0 GB       256 KB      0.00%
+            SRAM:       40732 B        64 KB     62.15%
+        FLEX_RAM:         520 B         8 KB      6.35%
